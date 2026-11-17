@@ -1,0 +1,416 @@
+﻿@page "/register"
+@rendermode InteractiveServer
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Identity
+@using HelpDesk.DAL.Identity
+
+@inject UserManager<ApplicationUser> UserManager
+@inject RoleManager<IdentityRole> RoleManager
+
+<PageTitle>Employee Registration</PageTitle>
+
+<style>
+    .register-wrapper {
+        min-height: 85vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 35px 15px;
+        background: #f4f6f9;
+    }
+
+    .register-card {
+        width: 100%;
+        max-width: 540px;
+        background: #ffffff;
+        border: none;
+        border-radius: 16px;
+        box-shadow: 0 10px 35px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+    }
+
+    .register-header {
+        background: #263b55;
+        color: white;
+        padding: 30px;
+        text-align: center;
+    }
+
+        .register-header .brand-icon {
+            font-size: 34px;
+            margin-bottom: 10px;
+        }
+
+        .register-header h2 {
+            font-size: 25px;
+            font-weight: 700;
+            margin-bottom: 7px;
+        }
+
+        .register-header p {
+            margin: 0;
+            color: #d5deea;
+            font-size: 14px;
+        }
+
+    .register-body {
+        padding: 32px;
+    }
+
+    .form-label {
+        font-weight: 600;
+        font-size: 14px;
+        color: #344054;
+    }
+
+    .form-control {
+        height: 46px;
+        border-radius: 8px;
+        border: 1px solid #d0d5dd;
+        padding: 10px 13px;
+    }
+
+        .form-control:focus {
+            border-color: #456b96;
+            box-shadow: 0 0 0 3px rgba(69, 107, 150, 0.12);
+        }
+
+    .password-wrapper {
+        position: relative;
+    }
+
+        .password-wrapper .form-control {
+            padding-right: 48px;
+        }
+
+    .password-toggle {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        border: none;
+        background: transparent;
+        color: #667085;
+        cursor: pointer;
+    }
+
+    .register-btn {
+        height: 47px;
+        border-radius: 8px;
+        background: #263b55;
+        border: none;
+        color: white;
+        font-weight: 600;
+        transition: background 0.2s ease;
+    }
+
+        .register-btn:hover:not(:disabled) {
+            background: #344f70;
+            color: white;
+        }
+
+        .register-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+    .register-footer {
+        text-align: center;
+        margin-top: 24px;
+        font-size: 14px;
+    }
+
+        .register-footer a {
+            color: #315d89;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+            .register-footer a:hover {
+                text-decoration: underline;
+            }
+
+    .validation-message {
+        font-size: 12px;
+        color: #dc3545;
+    }
+
+    @@media (max-width: 480px) {
+        .register-body {
+            padding: 25px 22px;
+        }
+
+        .register-header {
+            padding: 27px 20px;
+        }
+    }
+</style>
+
+<div class="register-wrapper">
+    <div class="register-card">
+
+        <div class="register-header">
+            <div class="brand-icon">
+                <i class="bi bi-person-plus"></i>
+            </div>
+
+            <h2>Create Your Account</h2>
+            <p>Register to access the HelpDesk system</p>
+        </div>
+
+        <div class="register-body">
+
+            @if (registrationSucceeded)
+            {
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle me-2"></i>
+                    Your account has been created successfully.
+                    You can now sign in.
+                </div>
+
+                <a href="/Account/Login"
+                   class="btn register-btn w-100 d-flex align-items-center justify-content-center">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>
+                    Go to Login
+                </a>
+            }
+            else
+            {
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger" role="alert">
+                        <i class="bi bi-exclamation-circle me-2"></i>
+                        @errorMessage
+                    </div>
+                }
+
+                <EditForm Model="model" OnValidSubmit="RegisterAsync">
+                    <DataAnnotationsValidator />
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">First Name</label>
+                            <InputText class="form-control"
+                                       placeholder="Enter first name"
+                                       @bind-Value="model.FirstName" />
+                            <ValidationMessage For="@(() => model.FirstName)"
+                                               class="validation-message" />
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Last Name</label>
+                            <InputText class="form-control"
+                                       placeholder="Enter last name"
+                                       @bind-Value="model.LastName" />
+                            <ValidationMessage For="@(() => model.LastName)"
+                                               class="validation-message" />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Email Address</label>
+                        <InputText class="form-control"
+                                   type="email"
+                                   placeholder="Enter your email"
+                                   @bind-Value="model.Email" />
+                        <ValidationMessage For="@(() => model.Email)"
+                                           class="validation-message" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Department</label>
+                        <InputText class="form-control"
+                                   placeholder="e.g. IT, HR, Finance"
+                                   @bind-Value="model.Department" />
+                        <ValidationMessage For="@(() => model.Department)"
+                                           class="validation-message" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+
+                        <div class="password-wrapper">
+                            <InputText class="form-control"
+                                       id="registerPassword"
+                                       type="@passwordInputType"
+                                       placeholder="Create a password"
+                                       @bind-Value="model.Password" />
+
+                            <button type="button"
+                                    class="password-toggle"
+                                    @onclick="TogglePassword"
+                                    aria-label="Show or hide password">
+                                <i class="bi @(showPassword ? "bi-eye-slash" : "bi-eye")"></i>
+                            </button>
+                        </div>
+
+                        <ValidationMessage For="@(() => model.Password)"
+                                           class="validation-message" />
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Confirm Password</label>
+
+                        <InputText class="form-control"
+                                   type="@confirmPasswordInputType"
+                                   placeholder="Confirm your password"
+                                   @bind-Value="model.ConfirmPassword" />
+
+                        <ValidationMessage For="@(() => model.ConfirmPassword)"
+                                           class="validation-message" />
+                    </div>
+
+                    <button type="submit"
+                            class="btn register-btn w-100"
+                            disabled="@isSubmitting">
+
+                        @if (isSubmitting)
+                        {
+                            <span>
+                                <span class="spinner-border spinner-border-sm me-2"
+                                      aria-hidden="true"></span>
+                                Creating Account...
+                            </span>
+                        }
+                        else
+                        {
+                            <span>
+                                <i class="bi bi-person-plus me-2"></i>
+                                Create Account
+                            </span>
+                        }
+                    </button>
+
+                </EditForm>
+
+                <div class="register-footer">
+                    Already have an account?
+                    <a href="/Account/Login">Sign in</a>
+                </div>
+            }
+
+        </div>
+    </div>
+</div>
+
+@code {
+    private RegisterModel model = new();
+    private bool isSubmitting;
+    private bool registrationSucceeded;
+    private string? errorMessage;
+
+    private bool showPassword;
+    private bool showConfirmPassword;
+
+    private string passwordInputType =>
+        showPassword ? "text" : "password";
+
+    private string confirmPasswordInputType =>
+        showConfirmPassword ? "text" : "password";
+
+    private void TogglePassword()
+    {
+        showPassword = !showPassword;
+    }
+
+    private async Task RegisterAsync()
+    {
+        errorMessage = null;
+        isSubmitting = true;
+
+        try
+        {
+            var employeeRole = await RoleManager.FindByNameAsync("Employee");
+
+            if (employeeRole is null)
+            {
+                var roleResult = await RoleManager.CreateAsync(
+                    new IdentityRole("Employee"));
+
+                if (!roleResult.Succeeded)
+                {
+                    errorMessage = string.Join(
+                        " ",
+                        roleResult.Errors.Select(e => e.Description));
+
+                    return;
+                }
+            }
+
+            var user = new ApplicationUser
+            {
+                FirstName = model.FirstName.Trim(),
+                LastName = model.LastName.Trim(),
+                UserName = model.Email.Trim(),
+                Email = model.Email.Trim(),
+                Department = string.IsNullOrWhiteSpace(model.Department)
+                    ? null
+                    : model.Department.Trim(),
+                IsActive = true
+            };
+
+            var createResult = await UserManager.CreateAsync(
+                user, model.Password);
+
+            if (!createResult.Succeeded)
+            {
+                errorMessage = string.Join(
+                    " ",
+                    createResult.Errors.Select(e => e.Description));
+
+                return;
+            }
+
+            var roleResultForUser = await UserManager.AddToRoleAsync(
+                user, "Employee");
+
+            if (!roleResultForUser.Succeeded)
+            {
+                await UserManager.DeleteAsync(user);
+
+                errorMessage = string.Join(
+                    " ",
+                    roleResultForUser.Errors.Select(e => e.Description));
+
+                return;
+            }
+
+            registrationSucceeded = true;
+        }
+        catch (Exception)
+        {
+            errorMessage = "Unable to create your account. Please try again.";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private class RegisterModel
+    {
+        [Required]
+        [StringLength(100)]
+        public string FirstName { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(100)]
+        public string LastName { get; set; } = string.Empty;
+
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        [StringLength(100)]
+        public string? Department { get; set; }
+
+        [Required]
+        [StringLength(100, MinimumLength = 8)]
+        public string Password { get; set; } = string.Empty;
+
+        [Required]
+        [Compare(nameof(Password), ErrorMessage = "Passwords do not match.")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+}

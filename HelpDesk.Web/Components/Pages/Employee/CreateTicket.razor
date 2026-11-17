@@ -1,0 +1,276 @@
+﻿@page "/employee/create-ticket"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Employee")]
+
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using HelpDesk.BLL.DTOs.Tickets
+@using HelpDesk.BLL.DTOs.Categories
+@using HelpDesk.BLL.Interfaces.Services
+
+@inject ITicketService TicketService
+@inject ICategoryService CategoryService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Create Support Ticket</PageTitle>
+
+<div class="container mt-4">
+
+    <div class="mb-4">
+        <h2>Create Support Ticket</h2>
+        <p class="text-muted">
+            Submit a technical issue to the IT support team.
+        </p>
+    </div>
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success">
+            @successMessage
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">
+            @errorMessage
+        </div>
+    }
+
+    @if (isLoading)
+    {
+        <p>Loading ticket form...</p>
+    }
+    else if (!isAuthenticated)
+    {
+        <div class="alert alert-warning">
+            Please sign in before creating a support ticket.
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Ticket Information</h5>
+            </div>
+
+            <div class="card-body">
+
+                <div class="mb-3">
+                    <label class="form-label">Ticket Title</label>
+
+                    <input class="form-control"
+                           @bind="newTicket.Title"
+                           @bind:event="oninput"
+                           maxlength="@MaxTitleLength"
+                           placeholder="Briefly describe your issue" />
+
+                    <small class="text-muted">
+                        @((newTicket.Title ?? string.Empty).Length)/@MaxTitleLength characters
+                    </small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+
+                    <textarea class="form-control"
+                              @bind="newTicket.Description"
+                              @bind:event="oninput"
+                              rows="5"
+                              placeholder="Explain your issue in detail">
+                    </textarea>
+
+                    <small class="text-muted">
+                        @GetWordCount(newTicket.Description)/@MaxDescriptionWords words
+                    </small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Category</label>
+
+                    <select class="form-select"
+                            @bind="newTicket.CategoryId">
+
+                        <option value="0">Select a category</option>
+
+                        @foreach (var category in categories)
+                        {
+                            <option value="@category.Id">
+                                @category.Name
+                            </option>
+                        }
+
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Priority</label>
+
+                    <select class="form-select"
+                            @bind="newTicket.Priority">
+
+                        <option value="Low">Low</option>
+                        <option value="Medium">Medium</option>
+                        <option value="High">High</option>
+                        <option value="Critical">Critical</option>
+
+                    </select>
+                </div>
+
+                <button class="btn btn-primary"
+                        @onclick="CreateTicketAsync"
+                        disabled="@isSaving">
+
+                    @(isSaving ? "Submitting..." : "Submit Ticket")
+
+                </button>
+
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+
+    private const int MaxTitleLength = 100;
+    private const int MaxDescriptionWords = 2000;
+
+    private CreateTicketDto newTicket = new();
+
+    private List<CategoryDto> categories = new();
+
+    private string? currentUserId;
+
+    private bool isLoading = true;
+    private bool isSaving;
+    private bool isAuthenticated;
+
+    private string? errorMessage;
+    private string? successMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authenticationState =
+                await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+            var user = authenticationState.User;
+
+            isAuthenticated = user.Identity?.IsAuthenticated == true;
+
+            if (isAuthenticated)
+            {
+                currentUserId = user.FindFirst(
+                    ClaimTypes.NameIdentifier)?.Value;
+            }
+
+            if (isAuthenticated && string.IsNullOrEmpty(currentUserId))
+            {
+                isAuthenticated = false;
+                errorMessage = "Unable to identify your user account.";
+            }
+
+            if (isAuthenticated)
+            {
+                var result = await CategoryService.GetAllAsync(
+                    activeOnly: true);
+
+                categories = result.ToList();
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "Unable to load the ticket form.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private int GetWordCount(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return 0;
+        }
+
+        return text.Split(
+            (char[]?)null,
+            StringSplitOptions.RemoveEmptyEntries).Length;
+    }
+
+    private async Task CreateTicketAsync()
+    {
+        errorMessage = null;
+        successMessage = null;
+
+        if (string.IsNullOrWhiteSpace(newTicket.Title))
+        {
+            errorMessage = "Ticket title is required.";
+            return;
+        }
+
+        if (newTicket.Title.Length > MaxTitleLength)
+        {
+            errorMessage = "Ticket title cannot exceed 100 characters.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(newTicket.Description))
+        {
+            errorMessage = "Ticket description is required.";
+            return;
+        }
+
+        if (GetWordCount(newTicket.Description) > MaxDescriptionWords)
+        {
+            errorMessage = "Ticket description cannot exceed 2000 words.";
+            return;
+        }
+
+        if (newTicket.CategoryId <= 0)
+        {
+            errorMessage = "Please select a category.";
+            return;
+        }
+
+        if (string.IsNullOrEmpty(currentUserId))
+        {
+            errorMessage = "Unable to identify your user account.";
+            return;
+        }
+
+        try
+        {
+            isSaving = true;
+
+            string ticketNumber = await TicketService.CreateAsync(
+                newTicket,
+                currentUserId);
+
+            successMessage =
+                $"Ticket created successfully! Ticket Number: {ticketNumber}";
+
+            newTicket = new CreateTicketDto();
+        }
+        catch (ArgumentException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (InvalidOperationException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (Exception)
+        {
+            errorMessage = "Unable to create ticket. Please try again.";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+}

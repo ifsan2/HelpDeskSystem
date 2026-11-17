@@ -1,0 +1,271 @@
+﻿@page "/admin/users"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+
+@using HelpDesk.BLL.DTOs.Users
+@using HelpDesk.BLL.Interfaces.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+
+@inject IUserService UserService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>User Management</PageTitle>
+
+<div class="container mt-4">
+    <div class="mb-4">
+        <h2>User Management</h2>
+        <p class="text-muted">
+            View and manage registered users in the HelpDesk system.
+        </p>
+    </div>
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success">@successMessage</div>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+
+    @if (isLoading)
+    {
+        <p>Loading users...</p>
+    }
+    else if (users.Count == 0)
+    {
+        <div class="alert alert-info">No registered users found.</div>
+    }
+    else
+    {
+        <div class="card shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Department</th>
+                            <th>Role</th>
+                            <th>Account Status</th>
+                            <th>Account Action</th>
+                            <th>Role Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in users)
+                        {
+                            <tr>
+                                <td class="fw-semibold">
+                                    @user.FirstName @user.LastName
+                                </td>
+                                <td>@user.Email</td>
+                                <td>
+                                    @(string.IsNullOrWhiteSpace(user.Department)
+                                        ? "Not specified"
+                                        : user.Department)
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">
+                                        @user.Role
+                                    </span>
+                                </td>
+                                <td>
+                                    @if (user.IsActive)
+                                    {
+                                        <span class="badge bg-success">Active</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger">Inactive</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (user.Id == currentUserId || user.Role == "Admin")
+                                    {
+                                        <span class="text-muted">Protected</span>
+                                    }
+                                    else if (user.IsActive)
+                                    {
+                                        <button class="btn btn-sm btn-danger"
+                                                disabled="@isUpdating"
+                                                @onclick="() => UpdateStatusAsync(user.Id, false)">
+                                            Deactivate
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-sm btn-success"
+                                                disabled="@isUpdating"
+                                                @onclick="() => UpdateStatusAsync(user.Id, true)">
+                                            Activate
+                                        </button>
+                                    }
+                                </td>
+                                <td>
+                                    @if (user.Role == "Admin")
+                                    {
+                                        <span class="text-muted">Protected</span>
+                                    }
+                                    else if (user.Role == "Employee")
+                                    {
+                                        <button class="btn btn-sm btn-primary"
+                                                disabled="@isUpdating"
+                                                @onclick='() => UpdateRoleAsync(user.Id, "Technician")'>
+                                            Make Technician
+                                        </button>
+                                    }
+                                    else if (user.Role == "Technician")
+                                    {
+                                        <button class="btn btn-sm btn-primary"
+                                                disabled="@isUpdating"
+                                                @onclick='() => UpdateRoleAsync(user.Id, "Employee")'>
+                                            Make Employee
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-sm btn-primary me-1"
+                                                disabled="@isUpdating"
+                                                @onclick='() => UpdateRoleAsync(user.Id, "Employee")'>
+                                            Assign Employee
+                                        </button>
+
+                                        <button class="btn btn-sm btn-primary"
+                                                disabled="@isUpdating"
+                                                @onclick='() => UpdateRoleAsync(user.Id, "Technician")'>
+                                            Assign Technician
+                                        </button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <p class="text-muted mt-3">
+            Total registered users: @users.Count
+        </p>
+    }
+</div>
+
+@code {
+    private List<UserListDto> users = new();
+
+    private bool isLoading = true;
+    private bool isUpdating = false;
+
+    private string currentUserId = string.Empty;
+    private string? successMessage;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authenticationState =
+                await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+            currentUserId = authenticationState.User.FindFirst(
+                ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+
+            await LoadUsersAsync();
+        }
+        catch (Exception)
+        {
+            errorMessage = "Unable to load registered users.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadUsersAsync()
+    {
+        var result = await UserService.GetAllAsync();
+        users = result.ToList();
+    }
+
+    private async Task UpdateStatusAsync(
+        string userId,
+        bool isActive)
+    {
+        if (userId == currentUserId || isUpdating)
+        {
+            return;
+        }
+
+        try
+        {
+            isUpdating = true;
+            successMessage = null;
+            errorMessage = null;
+
+            var updated = await UserService.UpdateActiveStatusAsync(
+                userId, isActive);
+
+            if (!updated)
+            {
+                errorMessage = "User account was not found.";
+                return;
+            }
+
+            await LoadUsersAsync();
+
+            successMessage = isActive
+                ? "User account activated successfully."
+                : "User account deactivated successfully.";
+        }
+        catch (Exception)
+        {
+            errorMessage = "Unable to update the user account.";
+        }
+        finally
+        {
+            isUpdating = false;
+        }
+    }
+
+    private async Task UpdateRoleAsync(
+        string userId,
+        string role)
+    {
+        if (isUpdating)
+        {
+            return;
+        }
+
+        try
+        {
+            isUpdating = true;
+            successMessage = null;
+            errorMessage = null;
+
+            var updated = await UserService.UpdateRoleAsync(
+                userId, role);
+
+            if (!updated)
+            {
+                errorMessage = "Unable to update this user's role.";
+                return;
+            }
+
+            await LoadUsersAsync();
+
+            successMessage = $"User role changed to {role} successfully.";
+        }
+        catch (Exception)
+        {
+            errorMessage = "Unable to update the user role.";
+        }
+        finally
+        {
+            isUpdating = false;
+        }
+    }
+}

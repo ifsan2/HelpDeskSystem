@@ -1,0 +1,281 @@
+﻿@page "/admin/ticket/{TicketId:int}"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+
+@using HelpDesk.BLL.DTOs.Tickets
+@using HelpDesk.BLL.Interfaces.Services
+
+@inject ITicketService TicketService
+@inject ITicketCommentService CommentService
+
+<PageTitle>Admin - Ticket Details</PageTitle>
+
+<div class="container mt-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3>Ticket Details</h3>
+            <p class="text-muted mb-0">Admin - Ticket Overview</p>
+        </div>
+
+        <a href="/admin/tickets" class="btn btn-outline-secondary">
+            Back to All Tickets
+        </a>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="alert alert-info">
+            Loading ticket details...
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">
+            @errorMessage
+        </div>
+    }
+    else if (ticket != null)
+    {
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">@ticket.TicketNumber - @ticket.Title</h5>
+            </div>
+
+            <div class="card-body">
+
+                <h6 class="text-primary mb-3">Employee Information</h6>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Submitted By:</strong>
+                        <span>@(ticket.CreatedByName ?? "Unknown Employee")</span>
+                    </div>
+
+                    <div class="col-md-6">
+                        <strong>Department:</strong>
+                        <span>@(ticket.CreatedByDepartment ?? "Not Specified")</span>
+                    </div>
+                </div>
+
+                <hr />
+
+                <h6 class="text-primary mb-3">Ticket Information</h6>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Category:</strong>
+                        <span>@ticket.CategoryName</span>
+                    </div>
+
+                    <div class="col-md-6">
+                        <strong>Priority:</strong>
+                        <span>@ticket.Priority</span>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Status:</strong>
+                        <span class="badge bg-primary">@ticket.Status</span>
+                    </div>
+
+                    <div class="col-md-6">
+                        <strong>Assigned Technician:</strong>
+                        <span>@(ticket.AssignedTechnicianName ?? "Not Assigned")</span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <strong>Created:</strong>
+                    <span>@ticket.CreatedAt.ToLocalTime().ToString("dd MMM yyyy, hh:mm tt")</span>
+                </div>
+
+                @if (ticket.UpdatedAt.HasValue)
+                {
+                    <div class="mb-3">
+                        <strong>Last Updated:</strong>
+                        <span>@ticket.UpdatedAt.Value.ToLocalTime().ToString("dd MMM yyyy, hh:mm tt")</span>
+                    </div>
+                }
+
+                @if (ticket.ClosedAt.HasValue)
+                {
+                    <div class="mb-3">
+                        <strong>Closed:</strong>
+                        <span>@ticket.ClosedAt.Value.ToLocalTime().ToString("dd MMM yyyy, hh:mm tt")</span>
+                    </div>
+                }
+
+                <hr />
+
+                <h6>Description</h6>
+                <p style="white-space: pre-wrap;">@ticket.Description</p>
+
+            </div>
+        </div>
+
+        <!-- Ticket History -->
+        <div class="card shadow-sm mb-4">
+
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Ticket Activity History</h5>
+                <small class="text-muted">
+                    Record of actions performed on this ticket
+                </small>
+            </div>
+
+            <div class="card-body">
+
+                @if (history.Count == 0)
+                {
+                    <p class="text-muted text-center my-3">
+                        No activity history available.
+                    </p>
+                }
+                else
+                {
+                    <div class="list-group list-group-flush">
+
+                        @foreach (var item in history)
+                        {
+                            <div class="list-group-item px-0">
+
+                                <div class="d-flex justify-content-between flex-wrap gap-2">
+
+                                    <strong>@item.Action</strong>
+
+                                    <small class="text-muted">
+                                        @item.CreatedAt.ToLocalTime().ToString("dd MMM yyyy, hh:mm tt")
+                                    </small>
+
+                                </div>
+
+                                @if (!string.IsNullOrWhiteSpace(item.OldValue))
+                                {
+                                    <div class="small text-muted mt-2">
+                                        Previous: @item.OldValue
+                                    </div>
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(item.NewValue))
+                                {
+                                    <div class="small mt-1">
+                                        New: @item.NewValue
+                                    </div>
+                                }
+
+                                <div class="small text-muted mt-1">
+                                    Performed by: @item.UserName
+                                </div>
+
+                            </div>
+                        }
+
+                    </div>
+                }
+
+            </div>
+        </div>
+
+        <!-- Conversation -->
+        <div class="card shadow-sm">
+
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Conversation</h5>
+                <small class="text-muted">
+                    Read-only view of Employee and Technician comments
+                </small>
+            </div>
+
+            <div class="card-body">
+
+                @if (comments.Count == 0)
+                {
+                    <p class="text-muted text-center my-3">
+                        No conversation messages yet.
+                    </p>
+                }
+                else
+                {
+                    @foreach (var comment in comments)
+                    {
+                        var isTechnician = !string.IsNullOrEmpty(ticket.AssignedTechnicianName)
+                            && comment.UserName == ticket.AssignedTechnicianName;
+
+                        <div class="d-flex mb-3 @(isTechnician ? "justify-content-end" : "justify-content-start")">
+
+                            <div class="p-3 rounded"
+                                 style="max-width: 75%; background-color: @(isTechnician ? "#dbeafe" : "#f1f3f5");">
+
+                                <div class="d-flex justify-content-between gap-3 mb-2">
+                                    <strong>@comment.UserName</strong>
+
+                                    <small class="text-muted">
+                                        @comment.CreatedAt.ToLocalTime().ToString("dd MMM yyyy, hh:mm tt")
+                                    </small>
+                                </div>
+
+                                <div style="white-space: pre-wrap;">@comment.Message</div>
+
+                            </div>
+                        </div>
+                    }
+                }
+
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+    [Parameter]
+    public int TicketId { get; set; }
+
+    private TicketDetailsDto? ticket;
+    private List<TicketCommentDto> comments = new();
+    private List<TicketHistoryDto> history = new();
+
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+        ticket = null;
+
+        comments.Clear();
+        history.Clear();
+
+        try
+        {
+            ticket = await TicketService.GetAdminDetailsAsync(TicketId);
+
+            if (ticket == null)
+            {
+                errorMessage = "Ticket not found.";
+                return;
+            }
+
+            var commentResult = await CommentService.GetByTicketIdAsync(
+                TicketId,
+                includeInternal: false);
+
+            comments = commentResult.ToList();
+
+            var historyResult = await TicketService.GetHistoryAsync(TicketId);
+
+            history = historyResult.ToList();
+        }
+        catch (Exception)
+        {
+            errorMessage = "Unable to load ticket details. Please try again.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

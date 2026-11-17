@@ -1,0 +1,432 @@
+﻿@page "/admin/tickets"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+
+@using HelpDesk.BLL.DTOs.Users
+@using HelpDesk.BLL.DTOs.Tickets
+@using HelpDesk.BLL.Interfaces.Services
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+
+@inject ITicketService TicketService
+@inject IUserService UserService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>All Support Tickets</PageTitle>
+
+<div class="container mt-4">
+
+    <div class="mb-4">
+        <h2 class="fw-bold">All Support Tickets</h2>
+        <p class="text-muted">
+            Monitor and manage support tickets submitted by all employees.
+        </p>
+    </div>
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success">
+            @successMessage
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">
+            @errorMessage
+        </div>
+    }
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary"></div>
+            <p class="text-muted mt-2">Loading tickets...</p>
+        </div>
+    }
+    else
+    {
+        <div class="row g-3 mb-4">
+
+            <div class="col-md-3">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <p class="text-muted mb-1">Total Tickets</p>
+                        <h3 class="fw-bold">@tickets.Count</h3>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <p class="text-muted mb-1">Open</p>
+                        <h3 class="fw-bold">@tickets.Count(t => t.Status == "Open")</h3>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <p class="text-muted mb-1">In Progress</p>
+                        <h3 class="fw-bold">@tickets.Count(t => t.Status == "In Progress")</h3>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <p class="text-muted mb-1">Resolved</p>
+                        <h3 class="fw-bold">@tickets.Count(t => t.Status == "Resolved")</h3>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+
+                <div class="row g-3">
+
+                    <div class="col-md-5">
+                        <label class="form-label fw-semibold">Search Tickets</label>
+                        <input class="form-control"
+                               placeholder="Search ticket number or title..."
+                               @bind="searchTerm"
+                               @bind:event="oninput" />
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Filter by Status</label>
+                        <select class="form-select" @bind="selectedStatus">
+                            <option value="">All Statuses</option>
+                            <option value="Open">Open</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Resolved">Resolved</option>
+                            <option value="Closed">Closed</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Filter by Priority</label>
+                        <select class="form-select" @bind="selectedPriority">
+                            <option value="">All Priorities</option>
+                            <option value="Low">Low</option>
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                            <option value="Critical">Critical</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-1 d-flex align-items-end">
+                        <button class="btn btn-outline-secondary w-100"
+                                @onclick="ClearFilters">
+                            Clear
+                        </button>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+
+        @if (FilteredTickets.Count == 0)
+        {
+            <div class="alert alert-info">
+                No tickets match your search or selected filters.
+            </div>
+        }
+        else
+        {
+            <div class="card shadow-sm">
+                <div class="table-responsive">
+
+                    <table class="table table-hover align-middle mb-0">
+
+                        <thead class="table-light">
+                            <tr>
+                                <th>Ticket Number</th>
+                                <th>Title</th>
+                                <th>Category</th>
+                                <th>Priority</th>
+                                <th>Status</th>
+                                <th>Assigned Technician</th>
+                                <th>Assign Technician</th>
+                                <th>Created</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            @foreach (var ticket in FilteredTickets)
+                            {
+                                <tr @key="ticket.Id">
+
+                                    <td class="fw-semibold">
+                                        @ticket.TicketNumber
+                                    </td>
+
+                                    <td>@ticket.Title</td>
+
+                                    <td>@ticket.CategoryName</td>
+
+                                    <td>
+                                        <span class="badge @GetPriorityClass(ticket.Priority)">
+                                            @ticket.Priority
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        <span class="badge @GetStatusClass(ticket.Status)">
+                                            @ticket.Status
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        @(string.IsNullOrWhiteSpace(ticket.AssignedTechnicianName)
+                                            ? "Not assigned"
+                                            : ticket.AssignedTechnicianName)
+                                    </td>
+
+                                    <td style="min-width: 230px;">
+                                        @if (technicians.Count == 0)
+                                        {
+                                            <span class="text-muted">
+                                                No active technicians
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <div class="d-flex gap-2">
+
+                                                <select class="form-select form-select-sm"
+                                                        @bind="selectedTechnicianIds[ticket.Id]">
+                                                    <option value="">Select Technician</option>
+
+                                                    @foreach (var technician in technicians)
+                                                    {
+                                                        <option value="@technician.Id">
+                                                            @technician.FirstName @technician.LastName
+                                                        </option>
+                                                    }
+                                                </select>
+
+                                                <button class="btn btn-sm btn-primary"
+                                                        disabled="@isUpdating"
+                                                        @onclick="() => AssignTicketAsync(ticket.Id)">
+                                                    Assign
+                                                </button>
+
+                                            </div>
+                                        }
+                                    </td>
+
+                                    <td>
+                                        @ticket.CreatedAt.ToLocalTime().ToString("dd MMM yyyy")
+                                    </td>
+
+                                    <td>
+                                        <a href="@($"/admin/ticket/{ticket.Id}")"
+                                           class="btn btn-sm btn-outline-primary">
+                                            View Details
+                                        </a>
+                                    </td>
+
+                                </tr>
+                            }
+                        </tbody>
+
+                    </table>
+
+                </div>
+            </div>
+        }
+
+        <p class="text-muted mt-3">
+            Showing @FilteredTickets.Count of @tickets.Count tickets.
+        </p>
+    }
+
+</div>
+
+@code {
+    private List<EmployeeTicketDto> tickets = new();
+    private List<UserListDto> technicians = new();
+
+    private Dictionary<int, string> selectedTechnicianIds = new();
+
+    private bool isLoading = true;
+    private bool isUpdating = false;
+
+    private string? successMessage;
+    private string? errorMessage;
+
+    private string searchTerm = string.Empty;
+    private string selectedStatus = string.Empty;
+    private string selectedPriority = string.Empty;
+
+    private List<EmployeeTicketDto> FilteredTickets =>
+        tickets
+            .Where(t =>
+                string.IsNullOrWhiteSpace(searchTerm) ||
+                t.TicketNumber.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                t.Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+            .Where(t =>
+                string.IsNullOrWhiteSpace(selectedStatus) ||
+                t.Status == selectedStatus)
+            .Where(t =>
+                string.IsNullOrWhiteSpace(selectedPriority) ||
+                t.Priority == selectedPriority)
+            .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await LoadDataAsync();
+        }
+        catch
+        {
+            errorMessage = "Unable to load tickets or technicians.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        var ticketResult = await TicketService.GetAllTicketsAsync();
+        tickets = ticketResult.ToList();
+
+        var userResult = await UserService.GetAllAsync();
+
+        technicians = userResult
+            .Where(u => u.Role == "Technician" && u.IsActive)
+            .ToList();
+
+        foreach (var ticket in tickets)
+        {
+            if (!selectedTechnicianIds.ContainsKey(ticket.Id))
+            {
+                selectedTechnicianIds[ticket.Id] = string.Empty;
+            }
+        }
+    }
+
+
+    private async Task AssignTicketAsync(int ticketId)
+    {
+        if (isUpdating)
+            return;
+
+        if (!selectedTechnicianIds.TryGetValue(ticketId, out var technicianId) ||
+            string.IsNullOrWhiteSpace(technicianId))
+        {
+            errorMessage = "Please select a technician first.";
+            successMessage = null;
+            return;
+        }
+
+        var ticket = tickets.FirstOrDefault(t => t.Id == ticketId);
+
+        if (ticket == null)
+        {
+            errorMessage = "Ticket not found. Please refresh the page.";
+            successMessage = null;
+            return;
+        }
+
+        // Check whether the ticket is already assigned to this technician.
+        if (ticket.AssignedTechnicianId == technicianId)
+        {
+            successMessage = null;
+            errorMessage = "This ticket is already assigned to this technician.";
+            return;
+        }
+
+        // Determine whether this is a new assignment or a reassignment.
+        bool isReassignment = !string.IsNullOrWhiteSpace(
+            ticket.AssignedTechnicianId);
+
+        try
+        {
+            isUpdating = true;
+            successMessage = null;
+            errorMessage = null;
+
+            var authState = await AuthenticationStateProvider
+                .GetAuthenticationStateAsync();
+
+            var assignedById = authState.User
+                .FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrWhiteSpace(assignedById))
+            {
+                errorMessage = "Unable to identify the logged-in administrator.";
+                return;
+            }
+
+            var assigned = await TicketService.AssignTicketAsync(
+                ticketId,
+                technicianId,
+                assignedById);
+
+            if (!assigned)
+            {
+                errorMessage = "Unable to assign this ticket. Please check the technician account.";
+                return;
+            }
+
+            await LoadDataAsync();
+
+            successMessage = isReassignment
+                ? "Ticket reassigned successfully."
+                : "Ticket assigned successfully.";
+        }
+        catch
+        {
+            errorMessage = "An error occurred while assigning the ticket.";
+        }
+        finally
+        {
+            isUpdating = false;
+        }
+    }
+
+
+    private void ClearFilters()
+    {
+        searchTerm = string.Empty;
+        selectedStatus = string.Empty;
+        selectedPriority = string.Empty;
+    }
+
+    private string GetStatusClass(string status)
+    {
+        return status switch
+        {
+            "Open" => "bg-primary",
+            "In Progress" => "bg-warning text-dark",
+            "Resolved" => "bg-success",
+            "Closed" => "bg-dark",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string GetPriorityClass(string priority)
+    {
+        return priority switch
+        {
+            "Low" => "bg-secondary",
+            "Medium" => "bg-info text-dark",
+            "High" => "bg-warning text-dark",
+            "Critical" => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+}

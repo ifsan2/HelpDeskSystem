@@ -1,0 +1,12 @@
+﻿@page
+@model HelpDesk.Web.Pages.Account.LogoutModel
+
+<form method="post">
+    @Html.AntiForgeryToken()
+</form>
+
+@section Scripts {
+    <script>
+        document.querySelector("form").submit();
+    </script>
+}

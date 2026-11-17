@@ -1,0 +1,338 @@
+
+/* =========================================
+   HELPDESK - GLOBAL DESIGN SYSTEM
+========================================= */
+
+:root {
+    --hd-primary: #172B4D;
+    --hd-primary-hover: #243F68;
+    --hd-accent: #3B82F6;
+    --hd-background: #F4F6FA;
+    --hd-surface: #FFFFFF;
+    --hd-text: #253247;
+    --hd-muted: #718096;
+    --hd-border: #E2E8F0;
+    --hd-radius: 12px;
+}
+
+html, body {
+    margin: 0;
+    min-height: 100%;
+    font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+    background-color: var(--hd-background);
+    color: var(--hd-text);
+}
+
+/* =========================================
+   MAIN APPLICATION LAYOUT
+========================================= */
+
+.app-shell {
+    min-height: 100vh;
+    background-color: var(--hd-background);
+}
+
+.app-header {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.app-main {
+    width: 100%;
+    min-height: calc(100vh - 70px);
+}
+
+.app-content {
+    width: 100%;
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 32px 40px;
+}
+
+/* =========================================
+   TOP NAVIGATION
+========================================= */
+
+.app-header .navbar {
+    background-color: var(--hd-primary) !important;
+    min-height: 70px;
+}
+
+.app-header .navbar-brand {
+    color: #FFFFFF !important;
+    letter-spacing: 0.3px;
+}
+
+.app-header .nav-link {
+    color: #DCE5F2 !important;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 9px 13px !important;
+    border-radius: 7px;
+    transition: background-color 0.2s ease;
+}
+
+    .app-header .nav-link:hover,
+    .app-header .nav-link.active {
+        color: #FFFFFF !important;
+        background-color: rgba(255,255,255,0.13);
+    }
+
+.app-header .btn-outline-light {
+    border-radius: 7px;
+    font-weight: 500;
+}
+
+/* =========================================
+   TYPOGRAPHY
+========================================= */
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--hd-primary);
+    font-weight: 650;
+    letter-spacing: -0.3px;
+}
+
+h1 {
+    font-size: 30px;
+}
+
+h2 {
+    font-size: 25px;
+}
+
+h3 {
+    font-size: 23px;
+}
+
+p {
+    line-height: 1.6;
+}
+
+a {
+    color: var(--hd-accent);
+    text-decoration: none;
+}
+
+    a:hover {
+        color: var(--hd-primary-hover);
+    }
+
+/* =========================================
+   CARDS
+========================================= */
+
+.card {
+    background-color: var(--hd-surface);
+    border: 1px solid var(--hd-border);
+    border-radius: var(--hd-radius);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    overflow: hidden;
+}
+
+.card-header {
+    background-color: #FFFFFF;
+    border-bottom: 1px solid var(--hd-border);
+    padding: 16px 20px;
+}
+
+.card-body {
+    padding: 22px;
+}
+
+/* =========================================
+   BUTTONS
+========================================= */
+
+.btn {
+    border-radius: 7px;
+    font-weight: 500;
+    padding: 8px 15px;
+    transition: all 0.2s ease;
+}
+
+.btn-primary {
+    color: #FFFFFF;
+    background-color: var(--hd-primary);
+    border-color: var(--hd-primary);
+}
+
+    .btn-primary:hover {
+        background-color: var(--hd-primary-hover);
+        border-color: var(--hd-primary-hover);
+    }
+
+.btn-outline-primary {
+    color: var(--hd-primary);
+    border-color: var(--hd-primary);
+}
+
+    .btn-outline-primary:hover {
+        color: #FFFFFF;
+        background-color: var(--hd-primary);
+        border-color: var(--hd-primary);
+    }
+
+.btn:focus,
+.btn:active:focus,
+.btn-link.nav-link:focus,
+.form-control:focus,
+.form-select:focus,
+.form-check-input:focus {
+    box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.18);
+}
+
+/* =========================================
+   FORMS
+========================================= */
+
+.form-control,
+.form-select {
+    min-height: 42px;
+    border: 1px solid #CBD5E1;
+    border-radius: 7px;
+    padding: 9px 12px;
+    color: var(--hd-text);
+}
+
+    .form-control:focus,
+    .form-select:focus {
+        border-color: var(--hd-accent);
+    }
+
+.form-label {
+    color: var(--hd-text);
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 7px;
+}
+
+textarea.form-control {
+    min-height: 110px;
+}
+
+/* =========================================
+   TABLES
+========================================= */
+
+.table {
+    color: var(--hd-text);
+    vertical-align: middle;
+    margin-bottom: 0;
+}
+
+    .table thead th {
+        background-color: #F8FAFC;
+        color: #526176;
+        font-size: 13px;
+        font-weight: 650;
+        border-bottom: 1px solid var(--hd-border);
+        padding: 14px 12px;
+        white-space: nowrap;
+    }
+
+    .table tbody td {
+        padding: 14px 12px;
+        border-color: var(--hd-border);
+        font-size: 14px;
+    }
+
+    .table tbody tr:hover {
+        background-color: #F8FAFC;
+    }
+
+/* =========================================
+   BADGES AND ALERTS
+========================================= */
+
+.badge {
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 6px;
+}
+
+.alert {
+    border-radius: 9px;
+}
+
+/* =========================================
+   VALIDATION
+========================================= */
+
+.valid.modified:not([type=checkbox]) {
+    outline: 1px solid #26b050;
+}
+
+.invalid {
+    outline: 1px solid #e50000;
+}
+
+.validation-message {
+    color: #dc2626;
+    font-size: 13px;
+}
+
+/* =========================================
+   BLazor ERROR UI
+========================================= */
+
+.blazor-error-boundary {
+    background: #B32121;
+    padding: 1rem 1rem 1rem 3.7rem;
+    color: white;
+}
+
+    .blazor-error-boundary::after {
+        content: "An error has occurred.";
+    }
+
+/* =========================================
+   CHECKBOXES
+========================================= */
+
+.darker-border-checkbox.form-check-input {
+    border-color: #929292;
+}
+
+/* =========================================
+   RESPONSIVE DESIGN
+========================================= */
+
+@media (max-width: 768px) {
+
+    .app-content {
+        padding: 22px 16px;
+    }
+
+    .app-header .navbar {
+        padding: 12px 16px !important;
+    }
+
+        .app-header .navbar > .d-flex {
+            justify-content: flex-start;
+            margin-left: 0 !important;
+            margin-top: 12px;
+        }
+
+    .app-header .nav-link {
+        padding: 7px 9px !important;
+        font-size: 13px;
+    }
+
+    h1 {
+        font-size: 25px;
+    }
+
+    h2 {
+        font-size: 22px;
+    }
+
+    h3 {
+        font-size: 20px;
+    }
+
+    .card-body {
+        padding: 16px;
+    }
+}

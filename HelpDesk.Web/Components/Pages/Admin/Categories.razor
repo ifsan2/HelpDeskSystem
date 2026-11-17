@@ -1,0 +1,507 @@
+﻿@page "/admin/categories"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+
+@using HelpDesk.BLL.DTOs.Categories
+@using HelpDesk.BLL.Interfaces.Services
+
+@inject ICategoryService CategoryService
+
+<PageTitle>Manage Categories</PageTitle>
+
+<div class="container mt-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>Category Management</h2>
+            <p class="text-muted">
+                Manage support ticket categories.
+            </p>
+        </div>
+
+        <button class="btn btn-primary"
+                @onclick="ShowCreateForm">
+            Add Category
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success">
+            @successMessage
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">
+            @errorMessage
+        </div>
+    }
+
+    @if (showCreateForm)
+    {
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Create New Category</h5>
+            </div>
+
+            <div class="card-body">
+
+                <div class="mb-3">
+                    <label class="form-label">Category Name</label>
+                    <input class="form-control"
+                           @bind="newCategory.Name"
+                           @bind:event="oninput"
+                           placeholder="Enter category name" />
+
+                    <small class="text-muted">
+                        @GetWordCount(newCategory.Name)/20 words
+                    </small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-control"
+                              @bind="newCategory.Description"
+                              maxlength="500"
+                              rows="3"
+                              placeholder="Enter category description">
+                    </textarea>
+                </div>
+
+                <button class="btn btn-primary"
+                        @onclick="CreateCategoryAsync"
+                        disabled="@isSaving">
+                    @(isSaving ? "Saving..." : "Save Category")
+                </button>
+
+                <button class="btn btn-secondary ms-2"
+                        @onclick="CancelCreate"
+                        disabled="@isSaving">
+                    Cancel
+                </button>
+
+            </div>
+        </div>
+    }
+
+    @if (showEditForm)
+    {
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Edit Category</h5>
+            </div>
+
+            <div class="card-body">
+
+                <div class="mb-3">
+                    <label class="form-label">Category Name</label>
+                    <input class="form-control"
+                           @bind="editCategory.Name"
+                           @bind:event="oninput"
+                           placeholder="Enter category name" />
+
+                    <small class="text-muted">
+                        @GetWordCount(editCategory.Name)/20 words
+                    </small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-control"
+                              @bind="editCategory.Description"
+                              maxlength="500"
+                              rows="3"
+                              placeholder="Enter category description">
+                    </textarea>
+                </div>
+
+                <div class="form-check mb-3">
+                    <input class="form-check-input"
+                           type="checkbox"
+                           @bind="editCategory.IsActive" />
+
+                    <label class="form-check-label">
+                        Active
+                    </label>
+                </div>
+
+                <button class="btn btn-primary"
+                        @onclick="UpdateCategoryAsync"
+                        disabled="@isSaving">
+                    @(isSaving ? "Updating..." : "Update Category")
+                </button>
+
+                <button class="btn btn-secondary ms-2"
+                        @onclick="CancelEdit"
+                        disabled="@isSaving">
+                    Cancel
+                </button>
+
+            </div>
+        </div>
+    }
+
+    @if (isLoading)
+    {
+        <p>Loading categories...</p>
+    }
+    else if (categories.Count == 0)
+    {
+        <div class="alert alert-info">
+            No categories found.
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+
+            <table class="table table-striped table-hover">
+
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                        <th>Created At</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    @foreach (var category in categories)
+                    {
+                        <tr>
+                            <td>@category.Id</td>
+
+                            <td>@category.Name</td>
+
+                            <td>@category.Description</td>
+
+                            <td>
+                                @if (category.IsActive)
+                                {
+                                    <span class="badge bg-success">
+                                        Active
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">
+                                        Inactive
+                                    </span>
+                                }
+                            </td>
+
+                            <td>
+                                @category.CreatedAt.ToLocalTime()
+                                .ToString("dd MMM yyyy")
+                            </td>
+
+                            <td>
+                                <div class="d-flex gap-2">
+
+                                    <button class="btn btn-sm btn-warning"
+                                            @onclick="() => ShowEditForm(category)"
+                                            disabled="@isSaving">
+                                        Edit
+                                    </button>
+
+                                    @if (category.IsActive)
+                                    {
+                                        <button class="btn btn-sm btn-outline-danger"
+                                                @onclick="() => ToggleCategoryStatusAsync(category)"
+                                                disabled="@isSaving">
+                                            Deactivate
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-sm btn-outline-success"
+                                                @onclick="() => ToggleCategoryStatusAsync(category)"
+                                                disabled="@isSaving">
+                                            Activate
+                                        </button>
+                                    }
+
+                                </div>
+                            </td>
+                        </tr>
+                    }
+
+                </tbody>
+
+            </table>
+
+        </div>
+    }
+
+</div>
+
+@code {
+
+    private List<CategoryDto> categories = new();
+
+    private CreateCategoryDto newCategory = new();
+
+    private UpdateCategoryDto editCategory = new();
+
+    private int editingCategoryId;
+
+    private bool isLoading = true;
+    private bool isSaving;
+    private bool showCreateForm;
+    private bool showEditForm;
+
+    private string? errorMessage;
+    private string? successMessage;
+
+
+    private int GetWordCount(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return 0;
+        }
+
+        return value.Split(
+            (char[]?)null,
+            StringSplitOptions.RemoveEmptyEntries).Length;
+    }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCategoriesAsync();
+    }
+
+
+    private async Task LoadCategoriesAsync()
+    {
+        try
+        {
+            isLoading = true;
+
+            var result = await CategoryService.GetAllAsync(
+                activeOnly: false);
+
+            categories = result.ToList();
+        }
+        catch (Exception)
+        {
+            errorMessage = "Unable to load categories.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+
+    private void ShowCreateForm()
+    {
+        showEditForm = false;
+
+        newCategory = new();
+
+        errorMessage = null;
+        successMessage = null;
+
+        showCreateForm = true;
+    }
+
+
+    private void CancelCreate()
+    {
+        showCreateForm = false;
+
+        newCategory = new();
+
+        errorMessage = null;
+    }
+
+
+    private async Task CreateCategoryAsync()
+    {
+        errorMessage = null;
+        successMessage = null;
+
+        if (string.IsNullOrWhiteSpace(newCategory.Name))
+        {
+            errorMessage = "Category name is required.";
+            return;
+        }
+
+        if (GetWordCount(newCategory.Name) > 20)
+        {
+            errorMessage = "Category name cannot exceed 20 words.";
+            return;
+        }
+
+        try
+        {
+            isSaving = true;
+
+            await CategoryService.CreateAsync(newCategory);
+
+            newCategory = new();
+
+            showCreateForm = false;
+
+            await LoadCategoriesAsync();
+
+            successMessage = "Category created successfully.";
+        }
+        catch (ArgumentException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (InvalidOperationException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (Exception)
+        {
+            errorMessage = "Unable to create category. Please try again.";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+
+    private void ShowEditForm(CategoryDto category)
+    {
+        showCreateForm = false;
+
+        editingCategoryId = category.Id;
+
+        editCategory = new UpdateCategoryDto
+        {
+            Name = category.Name,
+            Description = category.Description,
+            IsActive = category.IsActive
+        };
+
+        errorMessage = null;
+        successMessage = null;
+
+        showEditForm = true;
+    }
+
+
+    private void CancelEdit()
+    {
+        showEditForm = false;
+
+        editCategory = new();
+
+        errorMessage = null;
+    }
+
+
+    private async Task UpdateCategoryAsync()
+    {
+        errorMessage = null;
+        successMessage = null;
+
+        if (string.IsNullOrWhiteSpace(editCategory.Name))
+        {
+            errorMessage = "Category name is required.";
+            return;
+        }
+
+        if (GetWordCount(editCategory.Name) > 20)
+        {
+            errorMessage = "Category name cannot exceed 20 words.";
+            return;
+        }
+
+        try
+        {
+            isSaving = true;
+
+            bool updated = await CategoryService.UpdateAsync(
+                editingCategoryId,
+                editCategory);
+
+            if (!updated)
+            {
+                errorMessage = "Category not found.";
+                return;
+            }
+
+            showEditForm = false;
+
+            editCategory = new();
+
+            await LoadCategoriesAsync();
+
+            successMessage = "Category updated successfully.";
+        }
+        catch (ArgumentException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (InvalidOperationException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (Exception)
+        {
+            errorMessage = "Unable to update category. Please try again.";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+
+    private async Task ToggleCategoryStatusAsync(CategoryDto category)
+    {
+        errorMessage = null;
+        successMessage = null;
+
+        try
+        {
+            isSaving = true;
+
+            var updatedCategory = new UpdateCategoryDto
+            {
+                Name = category.Name,
+                Description = category.Description,
+                IsActive = !category.IsActive
+            };
+
+            bool updated = await CategoryService.UpdateAsync(
+                category.Id,
+                updatedCategory);
+
+            if (!updated)
+            {
+                errorMessage = "Category not found.";
+                return;
+            }
+
+            await LoadCategoriesAsync();
+
+            successMessage = category.IsActive
+                ? "Category deactivated successfully."
+                : "Category activated successfully.";
+        }
+        catch (Exception)
+        {
+            errorMessage = "Unable to change category status.";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+}

@@ -1,0 +1,485 @@
+﻿@page "/technician/ticket/{TicketId:int}"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Technician")]
+
+@using HelpDesk.BLL.DTOs.Tickets
+@using HelpDesk.BLL.Interfaces.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+
+@inject ITicketService TicketService
+@inject ITicketCommentService TicketCommentService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Ticket Details</PageTitle>
+
+<div class="container mt-4">
+
+    <div class="mb-4">
+        <a href="/technician/assigned-tickets"
+           class="btn btn-outline-secondary btn-sm">
+            Back to Assigned Tickets
+        </a>
+
+        <h2 class="mt-3">Ticket Details</h2>
+        <p class="text-muted">
+            View and manage your assigned support ticket.
+        </p>
+    </div>
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success">@successMessage</div>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+
+    @if (isLoading)
+    {
+        <p>Loading ticket details...</p>
+    }
+    else if (ticket == null)
+    {
+        <div class="alert alert-warning">
+            Ticket not found or it is not assigned to your account.
+        </div>
+    }
+    else
+    {
+        <!-- Ticket Information -->
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+
+                <h5 class="text-primary">@ticket.TicketNumber</h5>
+
+                <h3>@ticket.Title</h3>
+
+                <hr />
+
+                <div class="row mb-3">
+
+                    <div class="col-md-6">
+                        <strong>Category:</strong>
+                        <p>@ticket.CategoryName</p>
+                    </div>
+
+                    <div class="col-md-6">
+                        <strong>Priority:</strong>
+                        <p>@ticket.Priority</p>
+                    </div>
+
+                </div>
+
+                <div class="mb-3">
+                    <strong>Current Status:</strong>
+                    <p>
+                        <span class="badge bg-secondary">
+                            @ticket.Status
+                        </span>
+                    </p>
+                </div>
+
+                <div class="mb-3">
+                    <strong>Description:</strong>
+                    <p style="white-space: pre-wrap;">@ticket.Description</p>
+                </div>
+
+                <div class="mb-3">
+                    <strong>Created:</strong>
+                    <p>
+                        @ticket.CreatedAt.ToLocalTime().ToString("dd MMM yyyy, hh:mm tt")
+                    </p>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Ticket Status Management -->
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+
+                <h5 class="mb-3">Update Ticket Status</h5>
+
+                <div class="mb-3">
+
+                    <label class="form-label">
+                        Select New Status
+                    </label>
+
+                    <select class="form-select"
+                            @bind="selectedStatus">
+
+                        <option value="Open">Open</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Resolved">Resolved</option>
+
+                    </select>
+
+                    <small class="text-muted">
+                        Selected status: @selectedStatus
+                    </small>
+
+                </div>
+
+                <button type="button"
+                        class="btn btn-primary"
+                        @onclick="UpdateStatusAsync"
+                        disabled="@isUpdating">
+
+                    @(isUpdating ? "Updating..." : "Update Status")
+
+                </button>
+
+            </div>
+        </div>
+
+        <!-- Ticket Activity History -->
+
+        <div class="card shadow-sm mb-4">
+
+            <div class="card-header">
+                <h5 class="mb-0">Ticket Activity History</h5>
+                <small class="text-muted">
+                    Track the actions and progress of this ticket
+                </small>
+            </div>
+
+            <div class="card-body">
+
+                @if (history.Count == 0)
+                {
+                    <p class="text-muted text-center my-3">
+                        No activity history available.
+                    </p>
+                }
+                else
+                {
+                    <div class="list-group list-group-flush">
+
+                        @foreach (var item in history)
+                        {
+                            <div class="list-group-item px-0">
+
+                                <div class="d-flex justify-content-between flex-wrap gap-2">
+
+                                    <strong>@item.Action</strong>
+
+                                    <small class="text-muted">
+                                        @item.CreatedAt.ToLocalTime().ToString("dd MMM yyyy, hh:mm tt")
+                                    </small>
+
+                                </div>
+
+                                @if (!string.IsNullOrWhiteSpace(item.OldValue))
+                                {
+                                    <div class="small text-muted mt-2">
+                                        Previous: @item.OldValue
+                                    </div>
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(item.NewValue))
+                                {
+                                    <div class="small mt-1">
+                                        New: @item.NewValue
+                                    </div>
+                                }
+
+                                <div class="small text-muted mt-1">
+                                    Performed by: @item.UserName
+                                </div>
+
+                            </div>
+                        }
+
+                    </div>
+                }
+
+            </div>
+        </div>
+
+        <!-- Ticket Conversation -->
+
+        <div class="card shadow-sm mb-4">
+
+            <div class="card-header">
+                <h5 class="mb-0">Conversation</h5>
+            </div>
+
+            <div class="card-body">
+
+                @if (comments.Count == 0)
+                {
+                    <p class="text-muted">
+                        No comments yet. Start the conversation with the employee.
+                    </p>
+                }
+                else
+                {
+                    @foreach (var comment in comments)
+                    {
+                        bool isTechnicianComment = comment.UserId == technicianId;
+
+                        <div class="d-flex mb-3 @(isTechnicianComment ? "justify-content-end" : "justify-content-start")">
+
+                            <div class="p-3 rounded shadow-sm"
+                                 style="max-width: 75%;
+                                background-color: @(isTechnicianComment ? "#e7f1ff" : "#f1f3f5");
+                                border: 1px solid #dee2e6;">
+
+                                <div class="d-flex justify-content-between gap-3 mb-2">
+
+                                    <strong>@comment.UserName</strong>
+
+                                    <small class="text-muted">
+                                        @comment.CreatedAt.ToLocalTime().ToString("dd MMM yyyy, hh:mm tt")
+                                    </small>
+
+                                </div>
+
+                                <p class="mb-0" style="white-space: pre-wrap;">
+                                    @comment.Message
+                                </p>
+
+                            </div>
+
+                        </div>
+                    }
+                }
+
+                <hr />
+
+                <h6 class="mb-3">Reply to Employee</h6>
+
+                @if (!string.IsNullOrEmpty(commentError))
+                {
+                    <div class="alert alert-danger">
+                        @commentError
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(commentSuccess))
+                {
+                    <div class="alert alert-success">
+                        @commentSuccess
+                    </div>
+                }
+
+                <div class="mb-3">
+
+                    <textarea class="form-control"
+                              rows="4"
+                              maxlength="@MaxCommentLength"
+                              placeholder="Write your reply..."
+                              @bind="newComment"
+                              @bind:event="oninput"
+                              disabled="@isSubmittingComment">
+                    </textarea>
+
+                    <div class="text-end mt-1">
+                        <small class="text-muted">
+                            @newComment.Length/@MaxCommentLength characters
+                        </small>
+                    </div>
+
+                </div>
+
+                <button class="btn btn-primary"
+                        @onclick="AddCommentAsync"
+                        disabled="@(isSubmittingComment || string.IsNullOrWhiteSpace(newComment))">
+
+                    @(isSubmittingComment ? "Sending..." : "Send Reply")
+
+                </button>
+
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+    private const int MaxCommentLength = 2000;
+
+    [Parameter]
+    public int TicketId { get; set; }
+
+    private TicketDetailsDto? ticket;
+
+    private List<TicketCommentDto> comments = new();
+    private List<TicketHistoryDto> history = new();
+
+    private string selectedStatus = string.Empty;
+    private string newComment = string.Empty;
+
+    private string? technicianId;
+
+    private string? successMessage;
+    private string? errorMessage;
+
+    private string? commentError;
+    private string? commentSuccess;
+
+    private bool isLoading = true;
+    private bool isUpdating = false;
+    private bool isSubmittingComment = false;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        isLoading = true;
+
+        errorMessage = null;
+        successMessage = null;
+        commentError = null;
+        commentSuccess = null;
+
+        ticket = null;
+        comments.Clear();
+        history.Clear();
+
+        try
+        {
+            var authenticationState =
+                await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+            var user = authenticationState.User;
+
+            technicianId = user.FindFirst(
+                ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrWhiteSpace(technicianId))
+            {
+                errorMessage = "Unable to identify your technician account.";
+                return;
+            }
+
+            ticket = await TicketService.GetAssignedDetailsAsync(
+                TicketId,
+                technicianId);
+
+            if (ticket == null)
+            {
+                errorMessage = "Ticket not found or it is not assigned to your account.";
+                return;
+            }
+
+            selectedStatus = ticket.Status;
+
+            comments = (await TicketCommentService.GetByTicketIdAsync(
+                TicketId,
+                includeInternal: false)).ToList();
+
+            history = (await TicketService.GetHistoryAsync(
+                TicketId)).ToList();
+        }
+        catch (Exception)
+        {
+            errorMessage = "Unable to load ticket details.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task UpdateStatusAsync()
+    {
+        if (ticket == null ||
+            string.IsNullOrWhiteSpace(technicianId) ||
+            isUpdating)
+        {
+            return;
+        }
+
+        try
+        {
+            isUpdating = true;
+            successMessage = null;
+            errorMessage = null;
+
+            var updated = await TicketService.UpdateStatusAsync(
+                TicketId,
+                technicianId,
+                selectedStatus);
+
+            if (!updated)
+            {
+                errorMessage = "Unable to update ticket status.";
+                return;
+            }
+
+            ticket = await TicketService.GetAssignedDetailsAsync(
+                TicketId,
+                technicianId);
+
+            if (ticket != null)
+            {
+                selectedStatus = ticket.Status;
+            }
+
+            history = (await TicketService.GetHistoryAsync(
+                TicketId)).ToList();
+
+            successMessage = "Ticket status updated successfully.";
+        }
+        catch (Exception)
+        {
+            errorMessage = "An error occurred while updating the ticket status.";
+        }
+        finally
+        {
+            isUpdating = false;
+        }
+    }
+
+    private async Task AddCommentAsync()
+    {
+        if (ticket == null ||
+            string.IsNullOrWhiteSpace(technicianId) ||
+            string.IsNullOrWhiteSpace(newComment) ||
+            isSubmittingComment)
+        {
+            return;
+        }
+
+        if (newComment.Trim().Length > MaxCommentLength)
+        {
+            commentError = "Comment cannot exceed 2000 characters.";
+            return;
+        }
+
+        try
+        {
+            isSubmittingComment = true;
+
+            commentError = null;
+            commentSuccess = null;
+
+            await TicketCommentService.AddAsync(
+                TicketId,
+                technicianId,
+                newComment,
+                isInternal: false);
+
+            newComment = string.Empty;
+
+            comments = (await TicketCommentService.GetByTicketIdAsync(
+                TicketId,
+                includeInternal: false)).ToList();
+
+            commentSuccess = "Your reply has been submitted successfully.";
+        }
+        catch (Exception)
+        {
+            commentError = "Unable to submit your reply. Please try again.";
+        }
+        finally
+        {
+            isSubmittingComment = false;
+        }
+    }
+}

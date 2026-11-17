@@ -1,0 +1,239 @@
+﻿@page "/technician/conversations"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Technician")]
+
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using HelpDesk.BLL.DTOs.Tickets
+@using HelpDesk.BLL.Interfaces.Services
+
+@inject ITicketService TicketService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Conversations</PageTitle>
+
+<div class="container mt-4">
+
+    <div class="mb-4">
+        <h3 class="fw-bold mb-1">Conversations</h3>
+        <p class="text-muted mb-0">
+            View and manage conversations for your assigned tickets.
+        </p>
+    </div>
+
+    <div class="row mb-4">
+
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <p class="text-muted mb-1">Total Conversations</p>
+                    <h3 class="fw-bold mb-0">@ConversationItems.Count</h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <p class="text-muted mb-1">With Messages</p>
+                    <h3 class="fw-bold mb-0">
+                        @ConversationItems.Count(c => c.MessageCount > 0)
+                    </h3>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <p class="text-muted mb-1">Waiting for First Reply</p>
+                    <h3 class="fw-bold mb-0">
+                        @ConversationItems.Count(c => c.MessageCount == 0)
+                    </h3>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert alert-danger">
+            @ErrorMessage
+        </div>
+    }
+
+    @if (IsLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary"></div>
+            <p class="text-muted mt-2">Loading conversations...</p>
+        </div>
+    }
+    else if (ConversationItems.Count == 0)
+    {
+        <div class="card border-0 shadow-sm text-center p-5">
+            <h5 class="fw-bold">No Assigned Tickets</h5>
+            <p class="text-muted mb-0">
+                Once you accept or receive a ticket, its conversation will appear here.
+            </p>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm">
+            <div class="table-responsive">
+
+                <table class="table table-hover align-middle mb-0">
+
+                    <thead class="table-light">
+                        <tr>
+                            <th>Ticket</th>
+                            <th>Employee</th>
+                            <th>Latest Message</th>
+                            <th>Messages</th>
+                            <th>Status</th>
+                            <th>Last Activity</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach (var conversation in ConversationItems)
+                        {
+                            <tr @key="conversation.TicketId">
+
+                                <td>
+                                    <div class="fw-semibold">
+                                        @conversation.TicketNumber
+                                    </div>
+                                    <small class="text-muted">
+                                        @conversation.TicketTitle
+                                    </small>
+                                </td>
+
+                                <td>
+                                    @conversation.EmployeeName
+                                </td>
+
+                                <td style="min-width: 200px; max-width: 300px;">
+                                    @if (conversation.MessageCount == 0)
+                                    {
+                                        <span class="text-muted">
+                                            No messages yet
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <div class="fw-semibold small">
+                                            @conversation.LastMessageBy
+                                        </div>
+
+                                        <div class="text-muted small text-truncate"
+                                             title="@conversation.LastMessage">
+                                            @conversation.LastMessage
+                                        </div>
+                                    }
+                                </td>
+
+                                <td>
+                                    <span class="badge bg-primary">
+                                        @conversation.MessageCount
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <span class="badge @GetStatusClass(conversation.TicketStatus)">
+                                        @conversation.TicketStatus
+                                    </span>
+                                </td>
+
+                                <td>
+                                    @if (conversation.LastMessageAt.HasValue)
+                                    {
+                                        @(
+                                            conversation.LastMessageAt.Value
+                                                .ToLocalTime()
+                                                .ToString("dd MMM yyyy, hh:mm tt")
+                                        )
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">
+                                            No activity
+                                        </span>
+                                    }
+                                </td>
+
+                                <td class="text-end">
+                                    <a href="@($"/technician/ticket/{conversation.TicketId}")"
+                                       class="btn btn-sm btn-primary">
+                                        Open Conversation
+                                    </a>
+                                </td>
+
+                            </tr>
+                        }
+                    </tbody>
+
+                </table>
+
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+    private List<TechnicianConversationDto> ConversationItems = new();
+
+    private bool IsLoading = true;
+
+    private string? ErrorMessage;
+
+    private string TechnicianId = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authState =
+                await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+            TechnicianId =
+                authState.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(TechnicianId))
+            {
+                ErrorMessage = "Unable to identify your technician account.";
+                return;
+            }
+
+            var result =
+                await TicketService.GetTechnicianConversationsAsync(
+                    TechnicianId);
+
+            ConversationItems = result.ToList();
+        }
+        catch
+        {
+            ErrorMessage = "Unable to load conversations. Please try again.";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private string GetStatusClass(string status)
+    {
+        return status switch
+        {
+            "Open" => "bg-warning text-dark",
+            "In Progress" => "bg-primary",
+            "Resolved" => "bg-success",
+            _ => "bg-secondary"
+        };
+    }
+}

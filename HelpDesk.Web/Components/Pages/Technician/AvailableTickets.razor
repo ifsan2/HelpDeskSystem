@@ -1,0 +1,218 @@
+﻿@page "/technician/available-tickets"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Technician")]
+
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using HelpDesk.BLL.DTOs.Tickets
+@using HelpDesk.BLL.Interfaces.Services
+
+@inject ITicketService TicketService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Available Tickets</PageTitle>
+
+<div class="container mt-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold mb-1">Available Tickets</h3>
+            <p class="text-muted mb-0">
+                Browse and accept unassigned support tickets.
+            </p>
+        </div>
+
+        <span class="badge bg-primary fs-6">
+            @Tickets.Count Available
+        </span>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Message))
+    {
+        <div class="alert @MessageCssClass alert-dismissible">
+            @Message
+            <button type="button"
+                    class="btn-close"
+                    @onclick="() => Message = null">
+            </button>
+        </div>
+    }
+
+    @if (IsLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary"></div>
+            <p class="text-muted mt-2">Loading available tickets...</p>
+        </div>
+    }
+    else if (Tickets.Count == 0)
+    {
+        <div class="card border-0 shadow-sm text-center p-5">
+            <h5 class="fw-bold">No Available Tickets</h5>
+            <p class="text-muted mb-0">
+                There are currently no unassigned tickets.
+            </p>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Ticket</th>
+                            <th>Title</th>
+                            <th>Category</th>
+                            <th>Priority</th>
+                            <th>Created</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach (var ticket in Tickets)
+                        {
+                            <tr @key="ticket.Id">
+                                <td class="fw-semibold">
+                                    @ticket.TicketNumber
+                                </td>
+
+                                <td>
+                                    @ticket.Title
+                                </td>
+
+                                <td>
+                                    @ticket.CategoryName
+                                </td>
+
+                                <td>
+                                    <span class="badge @GetPriorityClass(ticket.Priority)">
+                                        @ticket.Priority
+                                    </span>
+                                </td>
+
+                                <td>
+                                    @ticket.CreatedAt.ToLocalTime().ToString("dd MMM yyyy")
+                                </td>
+
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-primary"
+                                            disabled="@IsClaiming"
+                                            @onclick="() => ClaimTicket(ticket.Id)">
+                                        @(ClaimingTicketId == ticket.Id
+                                            ? "Accepting..."
+                                            : "Accept Ticket")
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+    private List<EmployeeTicketDto> Tickets = new();
+
+    private bool IsLoading = true;
+    private bool IsClaiming = false;
+
+    private int? ClaimingTicketId;
+
+    private string? Message;
+    private string MessageCssClass = "alert-info";
+
+    private string TechnicianId = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState =
+            await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+        TechnicianId =
+            authState.User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? string.Empty;
+
+        await LoadTicketsAsync();
+    }
+
+    private async Task LoadTicketsAsync()
+    {
+        IsLoading = true;
+
+        try
+        {
+            var tickets =
+                await TicketService.GetAvailableTicketsAsync();
+
+            Tickets = tickets.ToList();
+        }
+        catch
+        {
+            Message = "Unable to load available tickets.";
+            MessageCssClass = "alert-danger";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task ClaimTicket(int ticketId)
+    {
+        if (IsClaiming || string.IsNullOrWhiteSpace(TechnicianId))
+            return;
+
+        IsClaiming = true;
+        ClaimingTicketId = ticketId;
+        Message = null;
+
+        try
+        {
+            var success = await TicketService.ClaimTicketAsync(
+                ticketId,
+                TechnicianId);
+
+            if (success)
+            {
+                Message = "Ticket accepted successfully.";
+                MessageCssClass = "alert-success";
+
+                await LoadTicketsAsync();
+            }
+            else
+            {
+                Message = "This ticket is no longer available. Please refresh.";
+                MessageCssClass = "alert-warning";
+
+                await LoadTicketsAsync();
+            }
+        }
+        catch
+        {
+            Message = "Something went wrong while accepting the ticket.";
+            MessageCssClass = "alert-danger";
+        }
+        finally
+        {
+            IsClaiming = false;
+            ClaimingTicketId = null;
+        }
+    }
+
+    private string GetPriorityClass(string priority)
+    {
+        return priority switch
+        {
+            "Low" => "bg-success",
+            "Medium" => "bg-info text-dark",
+            "High" => "bg-warning text-dark",
+            "Critical" => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+}

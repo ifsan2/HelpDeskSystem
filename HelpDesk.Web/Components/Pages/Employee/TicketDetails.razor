@@ -1,0 +1,417 @@
+﻿@page "/employee/ticket/{TicketId:int}"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Employee")]
+
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using HelpDesk.BLL.DTOs.Tickets
+@using HelpDesk.BLL.Interfaces.Services
+
+@inject ITicketService TicketService
+@inject ITicketCommentService TicketCommentService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Ticket Details</PageTitle>
+
+<div class="container mt-4">
+
+    <div class="mb-4">
+        <a href="/employee/my-tickets" class="btn btn-outline-secondary">
+            &larr; Back to My Tickets
+        </a>
+    </div>
+
+    @if (isLoading)
+    {
+        <p>Loading ticket details...</p>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">
+            @errorMessage
+        </div>
+    }
+    else if (ticket is not null)
+    {
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2>Ticket Details</h2>
+                <p class="text-muted mb-0">
+                    @ticket.TicketNumber
+                </p>
+            </div>
+
+            @if (ticket.Status == "Open")
+            {
+                <span class="badge bg-primary fs-6">Open</span>
+            }
+            else if (ticket.Status == "In Progress")
+            {
+                <span class="badge bg-warning text-dark fs-6">
+                    In Progress
+                </span>
+            }
+            else if (ticket.Status == "Resolved")
+            {
+                <span class="badge bg-success fs-6">Resolved</span>
+            }
+            else if (ticket.Status == "Closed")
+            {
+                <span class="badge bg-dark fs-6">Closed</span>
+            }
+            else
+            {
+                <span class="badge bg-secondary fs-6">
+                    @ticket.Status
+                </span>
+            }
+        </div>
+
+        <!-- Ticket Information -->
+        <div class="card shadow-sm mb-4">
+
+            <div class="card-header">
+                <h5 class="mb-0">Ticket Information</h5>
+            </div>
+
+            <div class="card-body">
+
+                <h4>@ticket.Title</h4>
+
+                <hr />
+
+                <h6>Description</h6>
+                <p style="white-space: pre-wrap">@ticket.Description</p>
+
+                <hr />
+
+                <div class="row">
+
+                    <div class="col-md-6 mb-3">
+                        <strong>Category</strong>
+                        <p>@ticket.CategoryName</p>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <strong>Priority</strong>
+                        <p>@ticket.Priority</p>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <strong>Created At</strong>
+                        <p>
+                            @ticket.CreatedAt.ToLocalTime().ToString("dd MMM yyyy, hh:mm tt")
+                        </p>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <strong>Last Updated</strong>
+                        <p>
+                            @(ticket.UpdatedAt?.ToLocalTime().ToString("dd MMM yyyy, hh:mm tt") ?? "Not updated")
+                        </p>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <strong>Assigned Technician</strong>
+                        <p>
+                            @(string.IsNullOrWhiteSpace(ticket.AssignedTechnicianName)
+                                ? "Not assigned yet"
+                                : ticket.AssignedTechnicianName)
+                        </p>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <strong>Closed At</strong>
+                        <p>
+                            @(ticket.ClosedAt?.ToLocalTime().ToString("dd MMM yyyy, hh:mm tt") ?? "Not closed")
+                        </p>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Ticket Activity History -->
+        <div class="card shadow-sm mb-4">
+
+            <div class="card-header">
+                <h5 class="mb-0">Ticket Activity History</h5>
+                <small class="text-muted">
+                    Track the progress and actions performed on your ticket
+                </small>
+            </div>
+
+            <div class="card-body">
+
+                @if (history.Count == 0)
+                {
+                    <p class="text-muted text-center my-3">
+                        No activity history available.
+                    </p>
+                }
+                else
+                {
+                    <div class="list-group list-group-flush">
+
+                        @foreach (var item in history)
+                        {
+                            <div class="list-group-item px-0">
+
+                                <div class="d-flex justify-content-between flex-wrap gap-2">
+
+                                    <strong>@item.Action</strong>
+
+                                    <small class="text-muted">
+                                        @item.CreatedAt.ToLocalTime().ToString("dd MMM yyyy, hh:mm tt")
+                                    </small>
+
+                                </div>
+
+                                @if (!string.IsNullOrWhiteSpace(item.OldValue))
+                                {
+                                    <div class="small text-muted mt-2">
+                                        Previous: @item.OldValue
+                                    </div>
+                                }
+
+                                @if (!string.IsNullOrWhiteSpace(item.NewValue))
+                                {
+                                    <div class="small mt-1">
+                                        New: @item.NewValue
+                                    </div>
+                                }
+
+                                <div class="small text-muted mt-1">
+                                    Performed by: @item.UserName
+                                </div>
+
+                            </div>
+                        }
+
+                    </div>
+                }
+
+            </div>
+        </div>
+
+        <!-- Conversation Section -->
+        <div class="card shadow-sm mb-4">
+
+            <div class="card-header">
+                <h5 class="mb-0">Conversation</h5>
+            </div>
+
+            <div class="card-body">
+
+                @if (comments.Count == 0)
+                {
+                    <p class="text-muted">
+                        No comments yet.
+                    </p>
+                }
+                else
+                {
+                    @foreach (var comment in comments)
+                    {
+                        bool isEmployeeComment = comment.UserId == employeeId;
+
+                        <div class="d-flex mb-3 @(isEmployeeComment ? "justify-content-end" : "justify-content-start")">
+
+                            <div class="p-3 rounded shadow-sm"
+                                 style="max-width: 75%;
+                                background-color: @(isEmployeeComment ? "#e7f1ff" : "#f1f3f5");
+                                border: 1px solid #dee2e6;">
+
+                                <div class="d-flex justify-content-between gap-3 mb-2">
+
+                                    <strong>@comment.UserName</strong>
+
+                                    <small class="text-muted">
+                                        @comment.CreatedAt.ToLocalTime().ToString("dd MMM yyyy, hh:mm tt")
+                                    </small>
+
+                                </div>
+
+                                <p class="mb-0" style="white-space: pre-wrap">
+                                    @comment.Message
+                                </p>
+
+                            </div>
+
+                        </div>
+                    }
+                }
+
+                <hr />
+
+                <h6 class="mb-3">Add a Comment</h6>
+
+                @if (!string.IsNullOrEmpty(commentError))
+                {
+                    <div class="alert alert-danger">
+                        @commentError
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(commentSuccess))
+                {
+                    <div class="alert alert-success">
+                        @commentSuccess
+                    </div>
+                }
+
+                <div class="mb-3">
+                    <textarea class="form-control"
+                              rows="4"
+                              maxlength="@MaxCommentLength"
+                              placeholder="Write your message..."
+                              @bind="newComment"
+                              @bind:event="oninput"
+                              disabled="@isSubmittingComment">
+                    </textarea>
+
+                    <div class="text-end mt-1">
+                        <small class="text-muted">
+                            @newComment.Length/@MaxCommentLength characters
+                        </small>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary"
+                        @onclick="AddCommentAsync"
+                        disabled="@(isSubmittingComment || string.IsNullOrWhiteSpace(newComment))">
+
+                    @(isSubmittingComment ? "Sending..." : "Send Comment")
+
+                </button>
+
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+
+    private const int MaxCommentLength = 2000;
+
+    [Parameter]
+    public int TicketId { get; set; }
+
+    private TicketDetailsDto? ticket;
+
+    private List<TicketCommentDto> comments = new();
+    private List<TicketHistoryDto> history = new();
+
+    private string newComment = string.Empty;
+
+    private string? employeeId;
+
+    private bool isLoading = true;
+    private bool isSubmittingComment;
+
+    private string? errorMessage;
+    private string? commentError;
+    private string? commentSuccess;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+        commentError = null;
+        commentSuccess = null;
+
+        ticket = null;
+        comments.Clear();
+        history.Clear();
+
+        try
+        {
+            var authenticationState =
+                await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+            var user = authenticationState.User;
+
+            employeeId = user.FindFirst(
+                ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrWhiteSpace(employeeId))
+            {
+                errorMessage = "Unable to identify your employee account.";
+                return;
+            }
+
+            ticket = await TicketService.GetDetailsAsync(
+                TicketId,
+                employeeId);
+
+            if (ticket is null)
+            {
+                errorMessage = "Ticket not found or you do not have permission to view it.";
+                return;
+            }
+
+            comments = (await TicketCommentService.GetByTicketIdAsync(
+                TicketId,
+                includeInternal: false)).ToList();
+
+            history = (await TicketService.GetHistoryAsync(
+                TicketId)).ToList();
+        }
+        catch (Exception)
+        {
+            errorMessage = "Unable to load ticket details.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task AddCommentAsync()
+    {
+        if (ticket is null ||
+            string.IsNullOrWhiteSpace(employeeId) ||
+            string.IsNullOrWhiteSpace(newComment) ||
+            isSubmittingComment)
+        {
+            return;
+        }
+
+        if (newComment.Trim().Length > MaxCommentLength)
+        {
+            commentError = "Comment cannot exceed 2000 characters.";
+            return;
+        }
+
+        isSubmittingComment = true;
+        commentError = null;
+        commentSuccess = null;
+
+        try
+        {
+            await TicketCommentService.AddAsync(
+                TicketId,
+                employeeId,
+                newComment,
+                isInternal: false);
+
+            newComment = string.Empty;
+
+            comments = (await TicketCommentService.GetByTicketIdAsync(
+                TicketId,
+                includeInternal: false)).ToList();
+
+            commentSuccess = "Your comment has been submitted successfully.";
+        }
+        catch (Exception)
+        {
+            commentError = "Unable to submit your comment. Please try again.";
+        }
+        finally
+        {
+            isSubmittingComment = false;
+        }
+    }
+}

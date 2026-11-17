@@ -1,0 +1,73 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+
+<header class="navbar navbar-expand-lg navbar-dark bg-dark px-4 py-3 shadow-sm">
+
+    <a class="navbar-brand fw-bold fs-4" href="/">
+        <span class="me-2">🎧</span> HelpDesk
+    </a>
+
+    <div class="d-flex flex-wrap align-items-center gap-3 ms-auto">
+
+        <AuthorizeView Roles="Admin">
+            <NavLink class="nav-link text-white" href="/admin/dashboard">
+                Dashboard
+            </NavLink>
+            <NavLink class="nav-link text-white" href="/admin/tickets">
+                All Tickets
+            </NavLink>
+            <NavLink class="nav-link text-white" href="/admin/categories">
+                Categories
+            </NavLink>
+            <NavLink class="nav-link text-white" href="/admin/users">
+                Users
+            </NavLink>
+        </AuthorizeView>
+
+        <AuthorizeView Roles="Technician">
+            <NavLink class="nav-link text-white" href="/technician/dashboard">
+                Dashboard
+            </NavLink>
+            <NavLink class="nav-link text-white" href="/technician/assigned-tickets">
+                Assigned Tickets
+            </NavLink>
+            <NavLink class="nav-link text-white" href="/technician/available-tickets">
+                Available Tickets
+            </NavLink>
+            <NavLink class="nav-link text-white" href="/technician/conversations">
+                Conversations
+            </NavLink>
+        </AuthorizeView>
+
+        <AuthorizeView Roles="Employee">
+            <NavLink class="nav-link text-white" href="/employee/my-tickets">
+                My Tickets
+            </NavLink>
+            <NavLink class="nav-link text-white" href="/employee/create-ticket">
+                Create Ticket
+            </NavLink>
+        </AuthorizeView>
+
+        <AuthorizeView>
+            <Authorized Context="auth">
+                <span class="text-white-50 small">
+                    @auth.User.Identity?.Name
+                </span>
+
+                <form method="post" action="/Account/Logout" class="m-0">
+                    <AntiforgeryToken />
+                    <button type="submit" class="btn btn-outline-light btn-sm">
+                        Logout
+                    </button>
+                </form>
+            </Authorized>
+
+            <NotAuthorized>
+                <NavLink class="btn btn-outline-light btn-sm" href="/Account/Login">
+                    Login
+                </NavLink>
+            </NotAuthorized>
+        </AuthorizeView>
+
+    </div>
+
+</header>

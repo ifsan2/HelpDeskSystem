@@ -1,0 +1,135 @@
+﻿@page "/technician/assigned-tickets"
+@rendermode InteractiveServer
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Technician")]
+
+@using HelpDesk.BLL.DTOs.Tickets
+@using HelpDesk.BLL.Interfaces.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+
+@inject ITicketService TicketService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Assigned Tickets</PageTitle>
+
+<div class="container mt-4">
+
+    <div class="mb-4">
+        <h2>Assigned Tickets</h2>
+        <p class="text-muted">
+            View support tickets assigned to you.
+        </p>
+    </div>
+
+    @if (isLoading)
+    {
+        <p>Loading assigned tickets...</p>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+    else if (tickets.Count == 0)
+    {
+        <div class="alert alert-info">
+            You currently have no assigned tickets.
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Ticket Number</th>
+                            <th>Title</th>
+                            <th>Category</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+                            <th>Created At</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach (var ticket in tickets)
+                        {
+                            <tr>
+                                <td class="fw-semibold">
+                                    @ticket.TicketNumber
+                                </td>
+
+                                <td>@ticket.Title</td>
+
+                                <td>@ticket.CategoryName</td>
+
+                                <td>@ticket.Priority</td>
+
+                                <td>
+                                    <span class="badge bg-secondary">
+                                        @ticket.Status
+                                    </span>
+                                </td>
+
+                                <td>
+                                    @ticket.CreatedAt.ToLocalTime().ToString("dd MMM yyyy")
+                                </td>
+
+                                <td>
+                                    <a href="@($"/technician/ticket/{ticket.Id}")"
+                                       class="btn btn-sm btn-outline-primary">
+                                        View Details
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <p class="text-muted mt-3">
+            Total assigned tickets: @tickets.Count
+        </p>
+    }
+
+</div>
+
+@code {
+    private List<EmployeeTicketDto> tickets = new();
+
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authenticationState =
+                await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+            var technicianId = authenticationState.User.FindFirst(
+                ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrWhiteSpace(technicianId))
+            {
+                errorMessage = "Unable to identify the logged-in technician.";
+                return;
+            }
+
+            var result = await TicketService.GetMyAssignedTicketsAsync(
+                technicianId);
+
+            tickets = result.ToList();
+        }
+        catch (Exception)
+        {
+            errorMessage = "Unable to load assigned tickets.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

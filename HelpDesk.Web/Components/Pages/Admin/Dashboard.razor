@@ -1,0 +1,350 @@
+﻿@page "/admin/dashboard"
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using HelpDesk.BLL.DTOs.Dashboard
+@using HelpDesk.BLL.Interfaces.Services
+
+@attribute [Authorize(Roles = "Admin")]
+
+@inject IDashboardService DashboardService
+
+<PageTitle>Admin Dashboard</PageTitle>
+
+<div class="container mt-4">
+
+    <div class="mb-4">
+        <h2 class="fw-bold">Admin Dashboard</h2>
+        <p class="text-muted">
+            Welcome to the HelpDesk Administration Panel.
+        </p>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="alert alert-info mt-3">
+            Loading dashboard statistics...
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger mt-3">
+            @errorMessage
+        </div>
+    }
+    else if (stats != null)
+    {
+        <h4 class="mt-4 mb-3">System Overview</h4>
+
+        <div class="row g-3">
+
+            <div class="col-md-4 col-lg-2">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h6 class="text-muted">Total Tickets</h6>
+                        <h3 class="fw-bold">@stats.TotalTickets</h3>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4 col-lg-2">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h6 class="text-muted">Open Tickets</h6>
+                        <h3 class="fw-bold">@stats.OpenTickets</h3>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4 col-lg-2">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h6 class="text-muted">In Progress</h6>
+                        <h3 class="fw-bold">@stats.InProgressTickets</h3>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4 col-lg-2">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h6 class="text-muted">Resolved</h6>
+                        <h3 class="fw-bold">@stats.ResolvedTickets</h3>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4 col-lg-2">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h6 class="text-muted">Employees</h6>
+                        <h3 class="fw-bold">@stats.TotalEmployees</h3>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4 col-lg-2">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h6 class="text-muted">Technicians</h6>
+                        <h3 class="fw-bold">@stats.TotalTechnicians</h3>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="card shadow-sm mt-4">
+            <div class="card-body">
+
+                <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+                    <div>
+                        <h4 class="mb-1">Ticket Activity</h4>
+                        <p class="text-muted mb-0">
+                            Tickets created and resolved over the last 7 days
+                        </p>
+                    </div>
+
+                    <div class="d-flex gap-3 mt-2 mt-md-0">
+                        <span class="small">
+                            <span class="activity-legend created"></span>
+                            Created
+                        </span>
+
+                        <span class="small">
+                            <span class="activity-legend resolved"></span>
+                            Resolved
+                        </span>
+                    </div>
+                </div>
+
+                @if (activity.Count == 0)
+                {
+                    <p class="text-muted">
+                        No activity data available.
+                    </p>
+                }
+                else
+                {
+                    <div class="activity-chart">
+
+                        @foreach (var item in activity)
+                        {
+                            <div class="activity-day" @key="item.Date">
+
+                                <div class="activity-date">
+                                    @item.Date.ToString("ddd, dd MMM")
+                                </div>
+
+                                <div class="activity-bars">
+
+                                    <div class="activity-bar-row">
+                                        <span class="activity-value">
+                                            @item.CreatedTickets
+                                        </span>
+
+                                        <div class="activity-track">
+                                            <div class="activity-bar created"
+                                                 style="width: @GetBarWidth(item.CreatedTickets)%">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="activity-bar-row">
+                                        <span class="activity-value">
+                                            @item.ResolvedTickets
+                                        </span>
+
+                                        <div class="activity-track">
+                                            <div class="activity-bar resolved"
+                                                 style="width: @GetBarWidth(item.ResolvedTickets)%">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                            </div>
+                        }
+
+                    </div>
+                }
+
+            </div>
+        </div>
+    }
+
+    <h4 class="mt-5 mb-3">Management</h4>
+
+    <div class="row g-3">
+
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="fw-bold">All Tickets</h5>
+                    <p class="text-muted">
+                        Monitor and manage support tickets.
+                    </p>
+                    <a href="/admin/tickets" class="btn btn-primary">
+                        View Tickets
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="fw-bold">Categories</h5>
+                    <p class="text-muted">
+                        Manage support ticket categories.
+                    </p>
+                    <a href="/admin/categories" class="btn btn-primary">
+                        Manage Categories
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="fw-bold">User Management</h5>
+                    <p class="text-muted">
+                        Manage employees and technicians.
+                    </p>
+                    <a href="/admin/users" class="btn btn-primary">
+                        Manage Users
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<style>
+    .activity-legend {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 3px;
+        margin-right: 5px;
+    }
+
+        .activity-legend.created,
+        .activity-bar.created {
+            background-color: #3B82F6;
+        }
+
+        .activity-legend.resolved,
+        .activity-bar.resolved {
+            background-color: #16A34A;
+        }
+
+    .activity-chart {
+        display: flex;
+        flex-direction: column;
+        gap: 22px;
+    }
+
+    .activity-day {
+        display: grid;
+        grid-template-columns: 110px 1fr;
+        gap: 15px;
+        align-items: center;
+    }
+
+    .activity-date {
+        font-size: 13px;
+        font-weight: 600;
+        color: #475569;
+    }
+
+    .activity-bars {
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+    }
+
+    .activity-bar-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .activity-value {
+        width: 20px;
+        font-size: 12px;
+        color: #64748B;
+        text-align: right;
+    }
+
+    .activity-track {
+        flex: 1;
+        height: 12px;
+        background-color: #F1F5F9;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .activity-bar {
+        height: 100%;
+        min-width: 0;
+        border-radius: 10px;
+        transition: width 0.3s ease;
+    }
+
+    @@media (max-width: 576px) {
+        .activity-day {
+            grid-template-columns: 85px 1fr;
+            gap: 8px;
+        }
+    }
+</style>
+
+@code {
+    private DashboardStatsDto? stats;
+
+    private List<TicketActivityDto> activity = new();
+
+    private bool isLoading = true;
+
+    private string? errorMessage;
+
+    private int maxActivity = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            stats = await DashboardService.GetStatsAsync();
+
+            activity = (await DashboardService.GetTicketActivityAsync(7))
+                .ToList();
+
+            maxActivity = Math.Max(
+                1,
+                activity.SelectMany(x => new[]
+                {
+                    x.CreatedTickets,
+                    x.ResolvedTickets
+                }).Max()
+            );
+        }
+        catch
+        {
+            errorMessage = "Unable to load dashboard information.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private double GetBarWidth(int count)
+    {
+        return (double)count / maxActivity * 100;
+    }
+}
