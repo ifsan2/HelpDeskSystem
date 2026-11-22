@@ -354,10 +354,12 @@
 
             comments = (await TicketCommentService.GetByTicketIdAsync(
                 TicketId,
+                employeeId,
                 includeInternal: false)).ToList();
 
             history = (await TicketService.GetHistoryAsync(
-                TicketId)).ToList();
+                TicketId,
+                employeeId)).ToList();
         }
         catch (Exception)
         {
@@ -401,6 +403,7 @@
 
             comments = (await TicketCommentService.GetByTicketIdAsync(
                 TicketId,
+                employeeId,
                 includeInternal: false)).ToList();
 
             commentSuccess = "Your comment has been submitted successfully.";

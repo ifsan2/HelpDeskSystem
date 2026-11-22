@@ -20,6 +20,7 @@ namespace HelpDesk.BLL.Services
 
         public async Task<IReadOnlyList<TicketCommentDto>> GetByTicketIdAsync(
             int ticketId,
+            string requestingUserId,
             bool includeInternal,
             CancellationToken cancellationToken = default)
         {
@@ -28,8 +29,14 @@ namespace HelpDesk.BLL.Services
                 throw new ArgumentException("Invalid ticket ID.");
             }
 
+            if (string.IsNullOrWhiteSpace(requestingUserId))
+            {
+                throw new ArgumentException("Requesting user ID is required.");
+            }
+
             return await _ticketCommentRepository.GetByTicketIdAsync(
                 ticketId,
+                requestingUserId,
                 includeInternal,
                 cancellationToken);
         }

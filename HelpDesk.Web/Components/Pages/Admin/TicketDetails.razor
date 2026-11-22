@@ -2,11 +2,14 @@
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
 
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
 @using HelpDesk.BLL.DTOs.Tickets
 @using HelpDesk.BLL.Interfaces.Services
 
 @inject ITicketService TicketService
 @inject ITicketCommentService CommentService
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>Admin - Ticket Details</PageTitle>
 
@@ -200,7 +203,8 @@
                 {
                     @foreach (var comment in comments)
                     {
-                        var isTechnician = !string.IsNullOrEmpty(ticket.AssignedTechnicianName)
+                        var isTechnician =
+                            !string.IsNullOrEmpty(ticket.AssignedTechnicianName)
                             && comment.UserName == ticket.AssignedTechnicianName;
 
                         <div class="d-flex mb-3 @(isTechnician ? "justify-content-end" : "justify-content-start")">
@@ -251,31 +255,44 @@
 
         try
         {
-            ticket = await TicketService.GetAdminDetailsAsync(TicketId);
+            var authenticationState =
+                await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+            var requestingUserId = authenticationState.User.FindFirst(
+                ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrWhiteSpace(requestingUserId))
+            {
+                throw new UnauthorizedAccessException(
+                    "Unable to identify the authenticated user.");
+            }
+
+            ticket = await TicketService.GetAdminDetailsAsync(
+                TicketId,
+                requestingUserId);
 
             if (ticket == null)
             {
-                errorMessage = "Ticket not found.";
+                errorMessage = "Ticket not found or you are not authorized.";
                 return;
             }
 
             var commentResult = await CommentService.GetByTicketIdAsync(
                 TicketId,
+                requestingUserId,
                 includeInternal: false);
 
             comments = commentResult.ToList();
 
-            var historyResult = await TicketService.GetHistoryAsync(TicketId);
+            var historyResult = await TicketService.GetHistoryAsync(
+                TicketId,
+                requestingUserId);
 
             history = historyResult.ToList();
         }
         catch (Exception)
         {
             errorMessage = "Unable to load ticket details. Please try again.";
-        }
-        finally
-        {
-            isLoading = false;
         }
     }
 }

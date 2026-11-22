@@ -10,7 +10,7 @@ namespace HelpDesk.BLL.Interfaces.Repositories
             Ticket ticket,
             CancellationToken cancellationToken = default);
 
-        Task<string?> GetLastTicketNumberAsync(
+        Task<int> GetNextTicketNumberAsync(
             CancellationToken cancellationToken = default);
 
         Task<IReadOnlyList<EmployeeTicketDto>> GetByEmployeeIdAsync(
@@ -18,6 +18,7 @@ namespace HelpDesk.BLL.Interfaces.Repositories
             CancellationToken cancellationToken = default);
 
         Task<IReadOnlyList<EmployeeTicketDto>> GetAllAsync(
+            string adminId,
             CancellationToken cancellationToken = default);
 
         Task<TicketDetailsDto?> GetDetailsByIdAsync(
@@ -27,6 +28,7 @@ namespace HelpDesk.BLL.Interfaces.Repositories
 
         Task<TicketDetailsDto?> GetAdminDetailsByIdAsync(
             int ticketId,
+            string adminId,
             CancellationToken cancellationToken = default);
 
         Task<IReadOnlyList<EmployeeTicketDto>> GetByTechnicianIdAsync(
@@ -34,6 +36,7 @@ namespace HelpDesk.BLL.Interfaces.Repositories
             CancellationToken cancellationToken = default);
 
         Task<IReadOnlyList<EmployeeTicketDto>> GetAvailableAsync(
+            string technicianId,
             CancellationToken cancellationToken = default);
 
         Task<bool> ClaimTicketAsync(
@@ -67,6 +70,7 @@ namespace HelpDesk.BLL.Interfaces.Repositories
 
         Task<IReadOnlyList<TicketHistoryDto>> GetHistoryByTicketIdAsync(
             int ticketId,
+            string requestingUserId,
             CancellationToken cancellationToken = default);
 
     }

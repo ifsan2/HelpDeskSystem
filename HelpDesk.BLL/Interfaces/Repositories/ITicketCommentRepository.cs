@@ -1,4 +1,5 @@
-﻿using HelpDesk.BLL.DTOs.Tickets;
+﻿
+using HelpDesk.BLL.DTOs.Tickets;
 using HelpDesk.BLL.Entities;
 
 namespace HelpDesk.BLL.Interfaces.Repositories
@@ -7,6 +8,7 @@ namespace HelpDesk.BLL.Interfaces.Repositories
     {
         Task<IReadOnlyList<TicketCommentDto>> GetByTicketIdAsync(
             int ticketId,
+            string requestingUserId,
             bool includeInternal,
             CancellationToken cancellationToken = default);
 

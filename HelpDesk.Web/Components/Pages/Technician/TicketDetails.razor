@@ -371,10 +371,12 @@
 
             comments = (await TicketCommentService.GetByTicketIdAsync(
                 TicketId,
+                technicianId,
                 includeInternal: false)).ToList();
 
             history = (await TicketService.GetHistoryAsync(
-                TicketId)).ToList();
+                TicketId,
+                technicianId)).ToList();
         }
         catch (Exception)
         {
@@ -422,7 +424,8 @@
             }
 
             history = (await TicketService.GetHistoryAsync(
-                TicketId)).ToList();
+                TicketId,
+                technicianId)).ToList();
 
             successMessage = "Ticket status updated successfully.";
         }
@@ -469,6 +472,7 @@
 
             comments = (await TicketCommentService.GetByTicketIdAsync(
                 TicketId,
+                technicianId,
                 includeInternal: false)).ToList();
 
             commentSuccess = "Your reply has been submitted successfully.";

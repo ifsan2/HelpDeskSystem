@@ -147,7 +147,7 @@
         try
         {
             var tickets =
-                await TicketService.GetAvailableTicketsAsync();
+                await TicketService.GetAvailableTicketsAsync(TechnicianId);
 
             Tickets = tickets.ToList();
         }

@@ -84,18 +84,9 @@ namespace HelpDesk.BLL.Services
                     "Please select a valid ticket priority.");
             }
 
-            var lastTicketNumber =
-                await _ticketRepository.GetLastTicketNumberAsync(
+            int nextNumber =
+                await _ticketRepository.GetNextTicketNumberAsync(
                     cancellationToken);
-
-            int nextNumber = 1;
-
-            if (!string.IsNullOrEmpty(lastTicketNumber) &&
-                lastTicketNumber.StartsWith("HD-") &&
-                int.TryParse(lastTicketNumber.Substring(3), out int lastNumber))
-            {
-                nextNumber = lastNumber + 1;
-            }
 
             string ticketNumber = $"HD-{nextNumber:D6}";
 
@@ -133,9 +124,17 @@ namespace HelpDesk.BLL.Services
         }
 
         public async Task<IReadOnlyList<EmployeeTicketDto>> GetAllTicketsAsync(
+            string adminId,
             CancellationToken cancellationToken = default)
         {
-            return await _ticketRepository.GetAllAsync(cancellationToken);
+            if (string.IsNullOrWhiteSpace(adminId))
+            {
+                return Array.Empty<EmployeeTicketDto>();
+            }
+
+            return await _ticketRepository.GetAllAsync(
+                adminId,
+                cancellationToken);
         }
 
         public async Task<TicketDetailsDto?> GetDetailsAsync(
@@ -161,6 +160,7 @@ namespace HelpDesk.BLL.Services
 
         public async Task<TicketDetailsDto?> GetAdminDetailsAsync(
             int ticketId,
+            string adminId,
             CancellationToken cancellationToken = default)
         {
             if (ticketId <= 0)
@@ -168,8 +168,14 @@ namespace HelpDesk.BLL.Services
                 throw new ArgumentException("Invalid ticket ID.");
             }
 
+            if (string.IsNullOrWhiteSpace(adminId))
+            {
+                throw new ArgumentException("Invalid admin ID.");
+            }
+
             return await _ticketRepository.GetAdminDetailsByIdAsync(
                 ticketId,
+                adminId,
                 cancellationToken);
         }
 
@@ -190,9 +196,18 @@ namespace HelpDesk.BLL.Services
         }
 
         public async Task<IReadOnlyList<EmployeeTicketDto>> GetAvailableTicketsAsync(
+            string technicianId,
             CancellationToken cancellationToken = default)
         {
+            if (string.IsNullOrWhiteSpace(technicianId))
+            {
+                throw new ArgumentException(
+                    "Technician ID is required.",
+                    nameof(technicianId));
+            }
+
             return await _ticketRepository.GetAvailableAsync(
+                technicianId,
                 cancellationToken);
         }
 
@@ -287,13 +302,23 @@ namespace HelpDesk.BLL.Services
 
         public async Task<IReadOnlyList<TicketHistoryDto>> GetHistoryAsync(
             int ticketId,
+            string requestingUserId,
             CancellationToken cancellationToken = default)
         {
             if (ticketId <= 0)
-                return Array.Empty<TicketHistoryDto>();
+            {
+                throw new ArgumentException("Invalid ticket ID.");
+            }
+
+            if (string.IsNullOrWhiteSpace(requestingUserId))
+            {
+                throw new ArgumentException(
+                    "Requesting user ID is required.");
+            }
 
             return await _ticketRepository.GetHistoryByTicketIdAsync(
                 ticketId,
+                requestingUserId,
                 cancellationToken);
         }
     }

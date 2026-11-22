@@ -25,6 +25,9 @@ namespace HelpDesk.DAL.Data
         {
             base.OnModelCreating(builder);
 
+            builder.HasSequence<int>("TicketNumberSequence")
+             .StartsAt(1)
+            .IncrementsBy(1);
             builder.ApplyConfigurationsFromAssembly(
                 typeof(ApplicationDbContext).Assembly);
         }

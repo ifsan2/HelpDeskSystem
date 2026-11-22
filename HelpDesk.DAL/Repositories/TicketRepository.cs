@@ -21,6 +21,32 @@ namespace HelpDesk.DAL.Repositories
             Ticket ticket,
             CancellationToken cancellationToken = default)
         {
+            if (ticket == null ||
+                string.IsNullOrWhiteSpace(ticket.CreatedById))
+            {
+                throw new ArgumentException("Invalid ticket or employee ID.");
+            }
+
+            // Verify that the employee exists, is active,
+            // and has the actual Employee role.
+            var employeeIsValid = await (
+                from user in _context.Users
+                join userRole in _context.UserRoles
+                    on user.Id equals userRole.UserId
+                join role in _context.Roles
+                    on userRole.RoleId equals role.Id
+                where user.Id == ticket.CreatedById
+                      && user.IsActive
+                      && role.Name == "Employee"
+                select user.Id
+            ).AnyAsync(cancellationToken);
+
+            if (!employeeIsValid)
+            {
+                throw new UnauthorizedAccessException(
+                    "Only active employees can create tickets.");
+            }
+
             await _context.Tickets.AddAsync(ticket, cancellationToken);
 
             var history = new TicketHistory
@@ -41,20 +67,65 @@ namespace HelpDesk.DAL.Repositories
         }
 
 
-        public async Task<string?> GetLastTicketNumberAsync(
+        public async Task<int> GetNextTicketNumberAsync(
             CancellationToken cancellationToken = default)
         {
-            return await _context.Tickets
-                .AsNoTracking()
-                .OrderByDescending(t => t.Id)
-                .Select(t => t.TicketNumber)
-                .FirstOrDefaultAsync(cancellationToken);
+            var connection = _context.Database.GetDbConnection();
+
+            bool shouldCloseConnection =
+                connection.State != System.Data.ConnectionState.Open;
+
+            if (shouldCloseConnection)
+            {
+                await connection.OpenAsync(cancellationToken);
+            }
+
+            try
+            {
+                await using var command = connection.CreateCommand();
+
+                command.CommandText =
+                    "SELECT NEXT VALUE FOR dbo.TicketNumberSequence;";
+
+                var result = await command.ExecuteScalarAsync(cancellationToken);
+
+                return Convert.ToInt32(result);
+            }
+            finally
+            {
+                if (shouldCloseConnection)
+                {
+                    await connection.CloseAsync();
+                }
+            }
         }
 
         public async Task<IReadOnlyList<EmployeeTicketDto>> GetByEmployeeIdAsync(
             string employeeId,
             CancellationToken cancellationToken = default)
         {
+            if (string.IsNullOrWhiteSpace(employeeId))
+            {
+                return Array.Empty<EmployeeTicketDto>();
+            }
+
+            var isActiveEmployee = await (
+                from user in _context.Users
+                join userRole in _context.UserRoles
+                    on user.Id equals userRole.UserId
+                join role in _context.Roles
+                    on userRole.RoleId equals role.Id
+                where user.Id == employeeId
+                      && user.IsActive
+                      && role.Name == "Employee"
+                select user.Id
+            ).AnyAsync(cancellationToken);
+
+            if (!isActiveEmployee)
+            {
+                return Array.Empty<EmployeeTicketDto>();
+            }
+
             return await _context.Tickets
                 .AsNoTracking()
                 .Where(t => t.CreatedById == employeeId)
@@ -80,8 +151,31 @@ namespace HelpDesk.DAL.Repositories
 
 
         public async Task<IReadOnlyList<EmployeeTicketDto>> GetAllAsync(
+            string adminId,
             CancellationToken cancellationToken = default)
         {
+            if (string.IsNullOrWhiteSpace(adminId))
+            {
+                return Array.Empty<EmployeeTicketDto>();
+            }
+
+            var isActiveAdmin = await (
+                from user in _context.Users
+                join userRole in _context.UserRoles
+                    on user.Id equals userRole.UserId
+                join role in _context.Roles
+                    on userRole.RoleId equals role.Id
+                where user.Id == adminId
+                      && user.IsActive
+                      && role.Name == "Admin"
+                select user.Id
+            ).AnyAsync(cancellationToken);
+
+            if (!isActiveAdmin)
+            {
+                return Array.Empty<EmployeeTicketDto>();
+            }
+
             return await _context.Tickets
                 .AsNoTracking()
                 .OrderByDescending(t => t.CreatedAt)
@@ -111,6 +205,28 @@ namespace HelpDesk.DAL.Repositories
             string employeeId,
             CancellationToken cancellationToken = default)
         {
+            if (ticketId <= 0 || string.IsNullOrWhiteSpace(employeeId))
+            {
+                return null;
+            }
+
+            var isActiveEmployee = await (
+                from user in _context.Users
+                join userRole in _context.UserRoles
+                    on user.Id equals userRole.UserId
+                join role in _context.Roles
+                    on userRole.RoleId equals role.Id
+                where user.Id == employeeId
+                      && user.IsActive
+                      && role.Name == "Employee"
+                select user.Id
+            ).AnyAsync(cancellationToken);
+
+            if (!isActiveEmployee)
+            {
+                return null;
+            }
+
             return await _context.Tickets
                 .AsNoTracking()
                 .Where(t => t.Id == ticketId && t.CreatedById == employeeId)
@@ -140,8 +256,33 @@ namespace HelpDesk.DAL.Repositories
         // Admin can view any ticket by its ID.
         public async Task<TicketDetailsDto?> GetAdminDetailsByIdAsync(
             int ticketId,
+            string adminId,
             CancellationToken cancellationToken = default)
         {
+            if (ticketId <= 0 || string.IsNullOrWhiteSpace(adminId))
+            {
+                return null;
+            }
+
+            // Verify that the Admin account exists, is active,
+            // and has the actual Admin role.
+            var adminIsValid = await (
+                from user in _context.Users
+                join userRole in _context.UserRoles
+                    on user.Id equals userRole.UserId
+                join role in _context.Roles
+                    on userRole.RoleId equals role.Id
+                where user.Id == adminId
+                      && user.IsActive
+                      && role.Name == "Admin"
+                select user.Id
+            ).AnyAsync(cancellationToken);
+
+            if (!adminIsValid)
+            {
+                return null;
+            }
+
             return await _context.Tickets
                 .AsNoTracking()
                 .Where(t => t.Id == ticketId)
@@ -183,6 +324,28 @@ namespace HelpDesk.DAL.Repositories
             string technicianId,
             CancellationToken cancellationToken = default)
         {
+            if (string.IsNullOrWhiteSpace(technicianId))
+            {
+                return Array.Empty<EmployeeTicketDto>();
+            }
+
+            var isActiveTechnician = await (
+                from user in _context.Users
+                join userRole in _context.UserRoles
+                    on user.Id equals userRole.UserId
+                join role in _context.Roles
+                    on userRole.RoleId equals role.Id
+                where user.Id == technicianId
+                      && user.IsActive
+                      && role.Name == "Technician"
+                select user.Id
+            ).AnyAsync(cancellationToken);
+
+            if (!isActiveTechnician)
+            {
+                return Array.Empty<EmployeeTicketDto>();
+            }
+
             return await _context.Tickets
                 .AsNoTracking()
                 .Where(t => t.AssignedToId == technicianId)
@@ -205,11 +368,37 @@ namespace HelpDesk.DAL.Repositories
         }
 
         public async Task<IReadOnlyList<EmployeeTicketDto>> GetAvailableAsync(
-            CancellationToken cancellationToken = default)
+           string technicianId,
+           CancellationToken cancellationToken = default)
         {
+            if (string.IsNullOrWhiteSpace(technicianId))
+            {
+                return Array.Empty<EmployeeTicketDto>();
+            }
+
+            // Verify that the user exists, is active, and has the actual Technician role.
+            var technicianIsValid = await (
+                from user in _context.Users
+                join userRole in _context.UserRoles
+                    on user.Id equals userRole.UserId
+                join role in _context.Roles
+                    on userRole.RoleId equals role.Id
+                where user.Id == technicianId
+                      && user.IsActive
+                      && role.Name == "Technician"
+                select user.Id
+            ).AnyAsync(cancellationToken);
+
+            if (!technicianIsValid)
+            {
+                return Array.Empty<EmployeeTicketDto>();
+            }
+
             return await _context.Tickets
                 .AsNoTracking()
-                .Where(t => t.AssignedToId == null && t.Status == "Open")
+                .Where(t =>
+                    t.AssignedToId == null &&
+                    t.Status == "Open")
                 .OrderByDescending(t => t.CreatedAt)
                 .Select(t => new EmployeeTicketDto
                 {
@@ -231,13 +420,36 @@ namespace HelpDesk.DAL.Repositories
             string technicianId,
             CancellationToken cancellationToken = default)
         {
+            if (ticketId <= 0 || string.IsNullOrWhiteSpace(technicianId))
+            {
+                return false;
+            }
+
+            // Verify that the user exists and is active.
             var technician = await _context.Users
                 .FirstOrDefaultAsync(
                     u => u.Id == technicianId && u.IsActive,
                     cancellationToken);
 
             if (technician == null)
+            {
                 return false;
+            }
+
+            // Verify the user's actual Technician role.
+            var hasTechnicianRole = await (
+                from userRole in _context.UserRoles
+                join role in _context.Roles
+                    on userRole.RoleId equals role.Id
+                where userRole.UserId == technicianId
+                      && role.Name == "Technician"
+                select userRole
+            ).AnyAsync(cancellationToken);
+
+            if (!hasTechnicianRole)
+            {
+                return false;
+            }
 
             await using var transaction =
                 await _context.Database.BeginTransactionAsync(cancellationToken);
@@ -288,28 +500,51 @@ namespace HelpDesk.DAL.Repositories
             string assignedById,
             CancellationToken cancellationToken = default)
         {
+            if (ticketId <= 0 ||
+                string.IsNullOrWhiteSpace(technicianId) ||
+                string.IsNullOrWhiteSpace(assignedById))
+            {
+                return false;
+            }
+
+            // Verify that the assigning user is an active Admin.
+            var adminIsValid = await (
+                from user in _context.Users
+                join userRole in _context.UserRoles
+                    on user.Id equals userRole.UserId
+                join role in _context.Roles
+                    on userRole.RoleId equals role.Id
+                where user.Id == assignedById
+                      && user.IsActive
+                      && role.Name == "Admin"
+                select user.Id
+            ).AnyAsync(cancellationToken);
+
+            if (!adminIsValid)
+                return false;
+
+            // Verify that the target user is an active Technician.
+            var technicianIsValid = await (
+                from user in _context.Users
+                join userRole in _context.UserRoles
+                    on user.Id equals userRole.UserId
+                join role in _context.Roles
+                    on userRole.RoleId equals role.Id
+                where user.Id == technicianId
+                      && user.IsActive
+                      && role.Name == "Technician"
+                select user.Id
+            ).AnyAsync(cancellationToken);
+
+            if (!technicianIsValid)
+                return false;
+
             var ticket = await _context.Tickets
                 .FirstOrDefaultAsync(
                     t => t.Id == ticketId,
                     cancellationToken);
 
             if (ticket == null)
-                return false;
-
-            var technician = await _context.Users
-                .FirstOrDefaultAsync(
-                    u => u.Id == technicianId && u.IsActive,
-                    cancellationToken);
-
-            if (technician == null)
-                return false;
-
-            var adminExists = await _context.Users
-                .AnyAsync(
-                    u => u.Id == assignedById,
-                    cancellationToken);
-
-            if (!adminExists)
                 return false;
 
             var previousTechnicianId = ticket.AssignedToId;
@@ -327,17 +562,20 @@ namespace HelpDesk.DAL.Repositories
                     .FirstOrDefaultAsync(cancellationToken);
             }
 
-            var action = previousTechnicianId == null
-                ? "Assigned"
-                : "Reassigned";
+            var technicianName = await _context.Users
+                .Where(u => u.Id == technicianId)
+                .Select(u => u.FirstName + " " + u.LastName)
+                .FirstOrDefaultAsync(cancellationToken);
 
             var history = new TicketHistory
             {
                 TicketId = ticketId,
                 UserId = assignedById,
-                Action = action,
+                Action = previousTechnicianId == null
+                    ? "Assigned"
+                    : "Reassigned",
                 OldValue = oldTechnicianName,
-                NewValue = technician.FirstName + " " + technician.LastName,
+                NewValue = technicianName,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -359,6 +597,29 @@ namespace HelpDesk.DAL.Repositories
             string technicianId,
             CancellationToken cancellationToken = default)
         {
+            if (string.IsNullOrWhiteSpace(technicianId))
+            {
+                return Array.Empty<TechnicianConversationDto>();
+            }
+
+            // Verify that the user exists, is active, and has the actual Technician role.
+            var technicianIsValid = await (
+                from user in _context.Users
+                join userRole in _context.UserRoles
+                    on user.Id equals userRole.UserId
+                join role in _context.Roles
+                    on userRole.RoleId equals role.Id
+                where user.Id == technicianId
+                      && user.IsActive
+                      && role.Name == "Technician"
+                select user.Id
+            ).AnyAsync(cancellationToken);
+
+            if (!technicianIsValid)
+            {
+                return Array.Empty<TechnicianConversationDto>();
+            }
+
             return await _context.Tickets
                 .AsNoTracking()
                 .Where(t => t.AssignedToId == technicianId)
@@ -411,6 +672,28 @@ namespace HelpDesk.DAL.Repositories
             string technicianId,
             CancellationToken cancellationToken = default)
         {
+            if (ticketId <= 0 || string.IsNullOrWhiteSpace(technicianId))
+            {
+                return null;
+            }
+
+            var isActiveTechnician = await (
+                from user in _context.Users
+                join userRole in _context.UserRoles
+                    on user.Id equals userRole.UserId
+                join role in _context.Roles
+                    on userRole.RoleId equals role.Id
+                where user.Id == technicianId
+                      && user.IsActive
+                      && role.Name == "Technician"
+                select user.Id
+            ).AnyAsync(cancellationToken);
+
+            if (!isActiveTechnician)
+            {
+                return null;
+            }
+
             return await _context.Tickets
                 .AsNoTracking()
                 .Where(t => t.Id == ticketId &&
@@ -435,13 +718,19 @@ namespace HelpDesk.DAL.Repositories
 
 
 
-
         public async Task<bool> UpdateStatusAsync(
             int ticketId,
             string technicianId,
             string newStatus,
             CancellationToken cancellationToken = default)
         {
+            if (ticketId <= 0 ||
+                string.IsNullOrWhiteSpace(technicianId) ||
+                string.IsNullOrWhiteSpace(newStatus))
+            {
+                return false;
+            }
+
             var allowedStatuses = new[]
             {
         "Open",
@@ -452,14 +741,23 @@ namespace HelpDesk.DAL.Repositories
             if (!allowedStatuses.Contains(newStatus))
                 return false;
 
-            var technicianIsActive = await _context.Users
-                .AnyAsync(
-                    u => u.Id == technicianId && u.IsActive,
-                    cancellationToken);
+            // Verify that the user is an active Technician.
+            var technicianIsValid = await (
+                from user in _context.Users
+                join userRole in _context.UserRoles
+                    on user.Id equals userRole.UserId
+                join role in _context.Roles
+                    on userRole.RoleId equals role.Id
+                where user.Id == technicianId
+                      && user.IsActive
+                      && role.Name == "Technician"
+                select user.Id
+            ).AnyAsync(cancellationToken);
 
-            if (!technicianIsActive)
+            if (!technicianIsValid)
                 return false;
 
+            // Only the assigned Technician can update the ticket.
             var ticket = await _context.Tickets
                 .FirstOrDefaultAsync(
                     t => t.Id == ticketId &&
@@ -502,9 +800,66 @@ namespace HelpDesk.DAL.Repositories
 
         public async Task<IReadOnlyList<TicketHistoryDto>> GetHistoryByTicketIdAsync(
             int ticketId,
+            string requestingUserId,
             CancellationToken cancellationToken = default)
         {
+            if (ticketId <= 0 || string.IsNullOrWhiteSpace(requestingUserId))
+            {
+                throw new ArgumentException("Invalid ticket or requesting user ID.");
+            }
+
+            // Verify that the requesting user exists and is active.
+            var userIsActive = await _context.Users
+                .AnyAsync(
+                    u => u.Id == requestingUserId && u.IsActive,
+                    cancellationToken);
+
+            if (!userIsActive)
+            {
+                throw new UnauthorizedAccessException(
+                    "Your account is not authorized to access ticket history.");
+            }
+
+            // Check whether the requesting user has the Admin role.
+            var isAdmin = await (
+                from userRole in _context.UserRoles
+                join role in _context.Roles
+                    on userRole.RoleId equals role.Id
+                where userRole.UserId == requestingUserId
+                      && role.Name == "Admin"
+                select userRole
+            ).AnyAsync(cancellationToken);
+
+            // Find the ticket and its ownership/assignment information.
+            var ticket = await _context.Tickets
+                .AsNoTracking()
+                .Where(t => t.Id == ticketId)
+                .Select(t => new
+                {
+                    t.CreatedById,
+                    t.AssignedToId
+                })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (ticket == null)
+            {
+                return Array.Empty<TicketHistoryDto>();
+            }
+
+            // Admins, ticket creators, and assigned technicians can view history.
+            var hasAccess =
+                isAdmin ||
+                ticket.CreatedById == requestingUserId ||
+                ticket.AssignedToId == requestingUserId;
+
+            if (!hasAccess)
+            {
+                throw new UnauthorizedAccessException(
+                    "You are not authorized to access this ticket history.");
+            }
+
             return await _context.TicketHistories
+                .AsNoTracking()
                 .Where(h => h.TicketId == ticketId)
                 .OrderByDescending(h => h.CreatedAt)
                 .Select(h => new TicketHistoryDto

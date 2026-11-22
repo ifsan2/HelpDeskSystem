@@ -22,6 +22,8 @@ namespace HelpDesk.DAL.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.HasSequence<int>("TicketNumberSequence");
+
             modelBuilder.Entity("HelpDesk.BLL.Entities.Category", b =>
                 {
                     b.Property<int>("Id")

@@ -253,6 +253,7 @@
 </div>
 
 @code {
+    private string? AdminId;
     private List<EmployeeTicketDto> tickets = new();
     private List<UserListDto> technicians = new();
 
@@ -300,7 +301,19 @@
 
     private async Task LoadDataAsync()
     {
-        var ticketResult = await TicketService.GetAllTicketsAsync();
+        var authState = await AuthenticationStateProvider
+            .GetAuthenticationStateAsync();
+
+        AdminId = authState.User
+            .FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrWhiteSpace(AdminId))
+        {
+            throw new UnauthorizedAccessException(
+                "Unable to identify the logged-in administrator.");
+        }
+
+        var ticketResult = await TicketService.GetAllTicketsAsync(AdminId);
         tickets = ticketResult.ToList();
 
         var userResult = await UserService.GetAllAsync();
