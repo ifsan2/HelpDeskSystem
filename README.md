@@ -130,7 +130,26 @@ HD-000003
 
 ## Screenshots
 
-Application screenshots will be added here to demonstrate the user interface and main workflows.
+### Login Page
+![Login Page](docs/screenshots/login.png)
+
+### Registration Page
+![Registration Page](docs/screenshots/register.png)
+
+### Employee Dashboard
+![Employee Dashboard](docs/screenshots/employee-dashboard.png)
+
+### Create Ticket
+![Create Ticket](docs/screenshots/create-ticket.png)
+
+### Ticket Details
+![Ticket Details](docs/screenshots/ticket-details.png)
+
+### Technician Dashboard
+![Technician Dashboard](docs/screenshots/technician-dashboard.png)
+
+### Admin Category Management
+![Admin Category Management](docs/screenshots/admin-categories.png)
 
 ## Project Purpose
 
