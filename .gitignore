@@ -6,20 +6,52 @@
 [Rr]elease/
 x64/
 x86/
+[Aa]rtifacts/
 
 # Visual Studio
 .vs/
 *.user
 *.suo
 *.cache
+*.userosscache
+*.sln.docstates
+
+# Visual Studio Code
+.vscode/
 
 # User-specific settings and secrets
 secrets.json
 appsettings.Development.json
+.env
+.env.*
+!.env.example
 
 # Logs
 *.log
+logs/
+
+# Local database files
+*.mdf
+*.ldf
+*.db
+*.sqlite
+*.sqlite3
+
+# NuGet
+*.nupkg
+.nuget/
+
+# Test results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
 
 # Operating system
 .DS_Store
 Thumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
