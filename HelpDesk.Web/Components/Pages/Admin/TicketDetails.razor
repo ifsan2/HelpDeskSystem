@@ -244,6 +244,7 @@
     private bool isLoading = true;
     private string? errorMessage;
 
+
     protected override async Task OnParametersSetAsync()
     {
         isLoading = true;
@@ -290,9 +291,16 @@
 
             history = historyResult.ToList();
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            Console.WriteLine($"Admin ticket details error: {ex}");
+
             errorMessage = "Unable to load ticket details. Please try again.";
         }
+        finally
+        {
+            isLoading = false;
+        }
     }
+
 }

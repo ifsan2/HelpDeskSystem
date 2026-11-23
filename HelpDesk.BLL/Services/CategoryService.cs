@@ -37,6 +37,12 @@ namespace HelpDesk.BLL.Services
             int id,
             CancellationToken cancellationToken = default)
         {
+            if (id <= 0)
+            {
+                throw new ArgumentException(
+                    "Invalid category ID.");
+            }
+
             var category = await _categoryRepository.GetByIdAsync(
                 id,
                 cancellationToken);
@@ -58,29 +64,40 @@ namespace HelpDesk.BLL.Services
 
         public async Task<CategoryDto> CreateAsync(
             CreateCategoryDto category,
+            string adminId,
             CancellationToken cancellationToken = default)
         {
+            ArgumentNullException.ThrowIfNull(category);
+
+            if (string.IsNullOrWhiteSpace(adminId))
+            {
+                throw new UnauthorizedAccessException(
+                    "Admin authentication is required.");
+            }
+
             if (string.IsNullOrWhiteSpace(category.Name))
             {
                 throw new ArgumentException(
                     "Category name is required.");
             }
 
-            if (category.Name.Trim()
-                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                .Length > 20)
+            var name = category.Name.Trim();
+
+            if (name.Split(
+                ' ',
+                StringSplitOptions.RemoveEmptyEntries).Length > 20)
             {
                 throw new ArgumentException(
                     "Category name cannot exceed 20 words.");
             }
 
-            if (category.Description?.Length > 500)
+            var description = category.Description?.Trim();
+
+            if (description?.Length > 500)
             {
                 throw new ArgumentException(
                     "Category description cannot exceed 500 characters.");
             }
-
-            var name = category.Name.Trim();
 
             if (await _categoryRepository.ExistsByNameAsync(
                 name,
@@ -93,13 +110,14 @@ namespace HelpDesk.BLL.Services
             var newCategory = new Category
             {
                 Name = name,
-                Description = category.Description?.Trim(),
+                Description = description,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
             };
 
             await _categoryRepository.AddAsync(
                 newCategory,
+                adminId,
                 cancellationToken);
 
             return new CategoryDto
@@ -115,23 +133,42 @@ namespace HelpDesk.BLL.Services
         public async Task<bool> UpdateAsync(
             int id,
             UpdateCategoryDto category,
+            string adminId,
             CancellationToken cancellationToken = default)
         {
+            ArgumentNullException.ThrowIfNull(category);
+
+            if (id <= 0)
+            {
+                throw new ArgumentException(
+                    "Invalid category ID.");
+            }
+
+            if (string.IsNullOrWhiteSpace(adminId))
+            {
+                throw new UnauthorizedAccessException(
+                    "Admin authentication is required.");
+            }
+
             if (string.IsNullOrWhiteSpace(category.Name))
             {
                 throw new ArgumentException(
                     "Category name is required.");
             }
 
-            if (category.Name.Trim()
-                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                .Length > 20)
+            var name = category.Name.Trim();
+
+            if (name.Split(
+                ' ',
+                StringSplitOptions.RemoveEmptyEntries).Length > 20)
             {
                 throw new ArgumentException(
                     "Category name cannot exceed 20 words.");
             }
 
-            if (category.Description?.Length > 500)
+            var description = category.Description?.Trim();
+
+            if (description?.Length > 500)
             {
                 throw new ArgumentException(
                     "Category description cannot exceed 500 characters.");
@@ -147,8 +184,6 @@ namespace HelpDesk.BLL.Services
                 return false;
             }
 
-            var name = category.Name.Trim();
-
             if (await _categoryRepository.ExistsByNameAsync(
                 name,
                 id,
@@ -159,11 +194,12 @@ namespace HelpDesk.BLL.Services
             }
 
             existingCategory.Name = name;
-            existingCategory.Description = category.Description?.Trim();
+            existingCategory.Description = description;
             existingCategory.IsActive = category.IsActive;
 
             await _categoryRepository.UpdateAsync(
                 existingCategory,
+                adminId,
                 cancellationToken);
 
             return true;

@@ -11,96 +11,230 @@
 <PageTitle>Employee Registration</PageTitle>
 
 <style>
-    .register-wrapper {
-        min-height: 85vh;
+    .register-page {
+        min-height: calc(100vh - 78px);
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 35px 15px;
-        background: #f4f6f9;
+        background: #e8eff7;
+        padding: 40px 30px;
     }
 
-    .register-card {
+    .register-layout {
         width: 100%;
-        max-width: 540px;
+        max-width: 1145px;
+        min-height: 607px;
+        margin: auto;
+        display: grid;
+        grid-template-columns: 0.85fr 1.15fr;
         background: #ffffff;
-        border: none;
-        border-radius: 16px;
-        box-shadow: 0 10px 35px rgba(0, 0, 0, 0.08);
+        border-radius: 22px;
         overflow: hidden;
+        box-shadow: 0 15px 45px rgba(25, 42, 70, 0.12);
     }
 
-    .register-header {
-        background: #263b55;
+    /* Left branding panel */
+
+    .register-brand {
+        background: #14243d;
         color: white;
-        padding: 30px;
-        text-align: center;
+        padding: 48px 56px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
     }
 
-        .register-header .brand-icon {
-            font-size: 34px;
-            margin-bottom: 10px;
+    .brand-logo {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 21px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+    }
+
+        .brand-logo i {
+            font-size: 28px;
+            color: #aebed2;
         }
 
-        .register-header h2 {
-            font-size: 25px;
+    .brand-content {
+        max-width: 350px;
+        margin: auto 0;
+    }
+
+        .brand-content h1 {
+            color: #ffffff;
+            font-size: 35px;
+            line-height: 1.25;
             font-weight: 700;
-            margin-bottom: 7px;
+            margin-bottom: 18px;
         }
 
-        .register-header p {
-            margin: 0;
-            color: #d5deea;
-            font-size: 14px;
+        .brand-content p {
+            color: #d2dce8;
+            font-size: 15px;
+            line-height: 1.65;
+            margin-bottom: 28px;
         }
 
-    .register-body {
-        padding: 32px;
+    .brand-feature {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 17px;
+        color: #e4eaf1;
+        font-size: 14px;
     }
+
+        .brand-feature i {
+            font-size: 18px;
+            color: #d5e0ec;
+        }
+
+    .brand-footer {
+        color: #aebed2;
+        font-size: 12px;
+    }
+
+    /* Right form panel */
+
+    .register-form-panel {
+        padding: 42px 66px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .form-heading {
+        margin-bottom: 30px;
+    }
+
+        .form-heading h2 {
+            color: #14243d;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .form-heading p {
+            color: #667085;
+            font-size: 14px;
+            margin: 0;
+        }
 
     .form-label {
-        font-weight: 600;
-        font-size: 14px;
         color: #344054;
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 7px;
     }
 
-    .form-control {
-        height: 46px;
-        border-radius: 8px;
-        border: 1px solid #d0d5dd;
+    .input-with-icon {
+        position: relative;
+    }
+
+        .input-with-icon > i {
+            position: absolute;
+            left: 13px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #8290a3;
+            z-index: 2;
+        }
+
+        .input-with-icon .form-control {
+            padding-left: 38px;
+        }
+
+    .register-form-panel .form-control {
+        height: 43px;
+        border: 1px solid #d7dce4;
+        border-radius: 9px;
         padding: 10px 13px;
+        font-size: 14px;
+        background-color: #ffffff;
     }
 
-        .form-control:focus {
+        .register-form-panel .form-control:focus {
             border-color: #456b96;
             box-shadow: 0 0 0 3px rgba(69, 107, 150, 0.12);
         }
 
+        .register-form-panel .form-control::placeholder {
+            color: #a0a8b5;
+        }
+
+    /* Password fields */
+
     .password-wrapper {
         position: relative;
+        width: 100%;
     }
 
         .password-wrapper .form-control {
-            padding-right: 48px;
+            width: 100%;
+            padding-right: 48px !important;
         }
 
-    .password-toggle {
-        position: absolute;
-        right: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        border: none;
-        background: transparent;
-        color: #667085;
-        cursor: pointer;
+        .password-wrapper .password-toggle {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            color: #7b8797;
+            cursor: pointer;
+            transition: color 0.2s ease, background 0.2s ease;
+        }
+
+            .password-wrapper .password-toggle:hover {
+                color: #263b55;
+                background: #eaf0f6;
+            }
+
+            .password-wrapper .password-toggle:focus-visible {
+                outline: 2px solid #456b96;
+                outline-offset: 2px;
+            }
+
+    .password-toggle svg {
+        display: block;
+        width: 19px;
+        height: 19px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        pointer-events: none;
     }
 
+    .validation-message {
+        display: block;
+        font-size: 12px;
+        color: #dc3545;
+        margin-top: 5px;
+    }
+
+    /* Button */
+
     .register-btn {
-        height: 47px;
-        border-radius: 8px;
+        height: 46px;
+        border-radius: 30px;
         background: #263b55;
         border: none;
         color: white;
+        font-size: 14px;
         font-weight: 600;
         transition: background 0.2s ease;
     }
@@ -115,9 +249,12 @@
             cursor: not-allowed;
         }
 
+    /* Footer */
+
     .register-footer {
         text-align: center;
         margin-top: 24px;
+        color: #667085;
         font-size: 14px;
     }
 
@@ -131,39 +268,143 @@
                 text-decoration: underline;
             }
 
-    .validation-message {
-        font-size: 12px;
-        color: #dc3545;
+    .register-alert {
+        font-size: 14px;
+        border-radius: 8px;
+    }
+
+    /* Responsive layout */
+
+    @@media (max-width: 900px) {
+        .register-page {
+            min-height: calc(100vh - 78px);
+            padding: 24px 18px;
+        }
+
+        .register-layout {
+            grid-template-columns: 1fr;
+            max-width: 620px;
+            min-height: auto;
+        }
+
+        .register-brand {
+            padding: 30px 36px;
+            min-height: 250px;
+        }
+
+        .brand-content {
+            margin: 30px 0 15px;
+        }
+
+            .brand-content h1 {
+                font-size: 27px;
+            }
+
+            .brand-content p {
+                margin-bottom: 15px;
+            }
+
+        .brand-feature,
+        .brand-footer {
+            display: none;
+        }
+
+        .register-form-panel {
+            padding: 38px 42px;
+        }
     }
 
     @@media (max-width: 480px) {
-        .register-body {
-            padding: 25px 22px;
+        .register-page {
+            padding: 12px;
         }
 
-        .register-header {
-            padding: 27px 20px;
+        .register-layout {
+            border-radius: 14px;
+        }
+
+        .register-brand {
+            padding: 25px;
+            min-height: 210px;
+        }
+
+        .register-form-panel {
+            padding: 30px 22px;
+        }
+
+            .register-form-panel .row > div {
+                width: 100%;
+            }
+
+        .form-heading h2 {
+            font-size: 24px;
         }
     }
 </style>
 
-<div class="register-wrapper">
-    <div class="register-card">
+<div class="register-page">
 
-        <div class="register-header">
-            <div class="brand-icon">
-                <i class="bi bi-person-plus"></i>
+    <div class="register-layout">
+
+        <!-- Left Branding Panel -->
+
+        <div class="register-brand">
+
+            <div class="brand-logo">
+                <i class="bi bi-headset"></i>
+                <span>HelpDesk</span>
             </div>
 
-            <h2>Create Your Account</h2>
-            <p>Register to access the HelpDesk system</p>
+            <div class="brand-content">
+
+                <h1>Support your workplace. Simplify your work.</h1>
+
+                <p>
+                    Join the HelpDesk system to submit support requests,
+                    communicate with technicians and track your tickets
+                    in one place.
+                </p>
+
+                <div class="brand-feature">
+                    <i class="bi bi-check-circle"></i>
+                    <span>Easy ticket submission and tracking</span>
+                </div>
+
+                <div class="brand-feature">
+                    <i class="bi bi-check-circle"></i>
+                    <span>Direct communication with support staff</span>
+                </div>
+
+                <div class="brand-feature">
+                    <i class="bi bi-check-circle"></i>
+                    <span>Secure employee account access</span>
+                </div>
+
+            </div>
+
+            <div class="brand-footer">
+                © @DateTime.Now.Year HelpDesk System. All rights reserved.
+            </div>
+
         </div>
 
-        <div class="register-body">
+        <!-- Registration Form -->
+
+        <div class="register-form-panel">
+
+            <div class="form-heading">
+
+                <h2>Create an account</h2>
+
+                <p>
+                    Enter your details to register as an employee.
+                </p>
+
+            </div>
 
             @if (registrationSucceeded)
             {
-                <div class="alert alert-success">
+                <div class="alert alert-success register-alert">
                     <i class="bi bi-check-circle me-2"></i>
                     Your account has been created successfully.
                     You can now sign in.
@@ -171,95 +412,188 @@
 
                 <a href="/Account/Login"
                    class="btn register-btn w-100 d-flex align-items-center justify-content-center">
+
                     <i class="bi bi-box-arrow-in-right me-2"></i>
                     Go to Login
+
                 </a>
             }
             else
             {
                 @if (!string.IsNullOrEmpty(errorMessage))
                 {
-                    <div class="alert alert-danger" role="alert">
+                    <div class="alert alert-danger register-alert" role="alert">
                         <i class="bi bi-exclamation-circle me-2"></i>
                         @errorMessage
                     </div>
                 }
 
                 <EditForm Model="model" OnValidSubmit="RegisterAsync">
+
                     <DataAnnotationsValidator />
 
+                    <!-- First and Last Name -->
+
                     <div class="row">
+
                         <div class="col-md-6 mb-3">
+
                             <label class="form-label">First Name</label>
+
                             <InputText class="form-control"
-                                       placeholder="Enter first name"
+                                       placeholder="First name"
                                        @bind-Value="model.FirstName" />
+
                             <ValidationMessage For="@(() => model.FirstName)"
                                                class="validation-message" />
+
                         </div>
 
                         <div class="col-md-6 mb-3">
+
                             <label class="form-label">Last Name</label>
+
                             <InputText class="form-control"
-                                       placeholder="Enter last name"
+                                       placeholder="Last name"
                                        @bind-Value="model.LastName" />
+
                             <ValidationMessage For="@(() => model.LastName)"
                                                class="validation-message" />
+
                         </div>
+
                     </div>
 
+                    <!-- Email -->
+
                     <div class="mb-3">
+
                         <label class="form-label">Email Address</label>
-                        <InputText class="form-control"
-                                   type="email"
-                                   placeholder="Enter your email"
-                                   @bind-Value="model.Email" />
+
+                        <div class="input-with-icon">
+
+                            <i class="bi bi-envelope"></i>
+
+                            <InputText class="form-control"
+                                       type="email"
+                                       placeholder="Enter your email address"
+                                       @bind-Value="model.Email" />
+
+                        </div>
+
                         <ValidationMessage For="@(() => model.Email)"
                                            class="validation-message" />
+
                     </div>
 
+                    <!-- Department -->
+
                     <div class="mb-3">
+
                         <label class="form-label">Department</label>
+
                         <InputText class="form-control"
                                    placeholder="e.g. IT, HR, Finance"
                                    @bind-Value="model.Department" />
+
                         <ValidationMessage For="@(() => model.Department)"
                                            class="validation-message" />
+
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Password</label>
+                    <!-- Password and Confirm Password -->
 
-                        <div class="password-wrapper">
-                            <InputText class="form-control"
-                                       id="registerPassword"
-                                       type="@passwordInputType"
-                                       placeholder="Create a password"
-                                       @bind-Value="model.Password" />
+                    <div class="row">
 
-                            <button type="button"
-                                    class="password-toggle"
-                                    @onclick="TogglePassword"
-                                    aria-label="Show or hide password">
-                                <i class="bi @(showPassword ? "bi-eye-slash" : "bi-eye")"></i>
-                            </button>
+                        <div class="col-md-6 mb-3">
+
+                            <label class="form-label">Password</label>
+
+                            <div class="password-wrapper">
+
+                                <InputText class="form-control"
+                                           type="@passwordInputType"
+                                           placeholder="Create a password"
+                                           @bind-Value="model.Password" />
+
+                                <button type="button"
+                                        class="password-toggle"
+                                        @onclick="TogglePassword"
+                                        aria-label="@(showPassword ? "Hide password" : "Show password")"
+                                        title="@(showPassword ? "Hide password" : "Show password")">
+
+                                    @if (showPassword)
+                                    {
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M3 3l18 18" />
+                                            <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
+                                            <path d="M9.9 5.2A11.5 11.5 0 0 1 12 5c5 0 9 4 10 7a11.8 11.8 0 0 1-3.1 4.4" />
+                                            <path d="M6.2 6.2C3.9 7.6 2.5 9.6 2 12c1 0 2-.2 2.9-.6" />
+                                        </svg>
+                                    }
+                                    else
+                                    {
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" />
+                                            <circle cx="12" cy="12" r="3" />
+                                        </svg>
+                                    }
+
+                                </button>
+
+                            </div>
+
+                            <ValidationMessage For="@(() => model.Password)"
+                                               class="validation-message" />
+
                         </div>
 
-                        <ValidationMessage For="@(() => model.Password)"
-                                           class="validation-message" />
+                        <div class="col-md-6 mb-3">
+
+                            <label class="form-label">Confirm Password</label>
+
+                            <div class="password-wrapper">
+
+                                <InputText class="form-control"
+                                           type="@confirmPasswordInputType"
+                                           placeholder="Confirm your password"
+                                           @bind-Value="model.ConfirmPassword" />
+
+                                <button type="button"
+                                        class="password-toggle"
+                                        @onclick="ToggleConfirmPassword"
+                                        aria-label="@(showConfirmPassword ? "Hide password" : "Show password")"
+                                        title="@(showConfirmPassword ? "Hide password" : "Show password")">
+
+                                    @if (showConfirmPassword)
+                                    {
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M3 3l18 18" />
+                                            <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
+                                            <path d="M9.9 5.2A11.5 11.5 0 0 1 12 5c5 0 9 4 10 7a11.8 11.8 0 0 1-3.1 4.4" />
+                                            <path d="M6.2 6.2C3.9 7.6 2.5 9.6 2 12c1 0 2-.2 2.9-.6" />
+                                        </svg>
+                                    }
+                                    else
+                                    {
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" />
+                                            <circle cx="12" cy="12" r="3" />
+                                        </svg>
+                                    }
+
+                                </button>
+
+                            </div>
+
+                            <ValidationMessage For="@(() => model.ConfirmPassword)"
+                                               class="validation-message" />
+
+                        </div>
+
                     </div>
 
-                    <div class="mb-4">
-                        <label class="form-label">Confirm Password</label>
-
-                        <InputText class="form-control"
-                                   type="@confirmPasswordInputType"
-                                   placeholder="Confirm your password"
-                                   @bind-Value="model.ConfirmPassword" />
-
-                        <ValidationMessage For="@(() => model.ConfirmPassword)"
-                                           class="validation-message" />
-                    </div>
+                    <!-- Submit -->
 
                     <button type="submit"
                             class="btn register-btn w-100"
@@ -280,24 +614,33 @@
                                 Create Account
                             </span>
                         }
+
                     </button>
 
                 </EditForm>
 
                 <div class="register-footer">
+
                     Already have an account?
+
                     <a href="/Account/Login">Sign in</a>
+
                 </div>
             }
 
         </div>
+
     </div>
+
 </div>
 
 @code {
+
     private RegisterModel model = new();
+
     private bool isSubmitting;
     private bool registrationSucceeded;
+
     private string? errorMessage;
 
     private bool showPassword;
@@ -314,6 +657,11 @@
         showPassword = !showPassword;
     }
 
+    private void ToggleConfirmPassword()
+    {
+        showConfirmPassword = !showConfirmPassword;
+    }
+
     private async Task RegisterAsync()
     {
         errorMessage = null;
@@ -321,7 +669,8 @@
 
         try
         {
-            var employeeRole = await RoleManager.FindByNameAsync("Employee");
+            var employeeRole =
+                await RoleManager.FindByNameAsync("Employee");
 
             if (employeeRole is null)
             {
@@ -344,14 +693,17 @@
                 LastName = model.LastName.Trim(),
                 UserName = model.Email.Trim(),
                 Email = model.Email.Trim(),
+
                 Department = string.IsNullOrWhiteSpace(model.Department)
                     ? null
                     : model.Department.Trim(),
+
                 IsActive = true
             };
 
             var createResult = await UserManager.CreateAsync(
-                user, model.Password);
+                user,
+                model.Password);
 
             if (!createResult.Succeeded)
             {
@@ -363,7 +715,8 @@
             }
 
             var roleResultForUser = await UserManager.AddToRoleAsync(
-                user, "Employee");
+                user,
+                "Employee");
 
             if (!roleResultForUser.Succeeded)
             {
@@ -380,7 +733,8 @@
         }
         catch (Exception)
         {
-            errorMessage = "Unable to create your account. Please try again.";
+            errorMessage =
+                "Unable to create your account. Please try again.";
         }
         finally
         {

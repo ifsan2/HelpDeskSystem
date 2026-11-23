@@ -1,4 +1,5 @@
-﻿using HelpDesk.BLL.Entities;
+﻿
+using HelpDesk.BLL.Entities;
 
 namespace HelpDesk.BLL.Interfaces.Repositories
 {
@@ -19,10 +20,12 @@ namespace HelpDesk.BLL.Interfaces.Repositories
 
         Task AddAsync(
             Category category,
+            string adminId,
             CancellationToken cancellationToken = default);
 
         Task UpdateAsync(
             Category category,
+            string adminId,
             CancellationToken cancellationToken = default);
     }
 }

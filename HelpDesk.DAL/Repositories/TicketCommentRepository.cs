@@ -16,6 +16,22 @@ namespace HelpDesk.DAL.Repositories
             _context = context;
         }
 
+        private async Task<List<string>> GetActiveUserRolesAsync(
+            string userId,
+            CancellationToken cancellationToken)
+        {
+            return await (
+                from user in _context.Users
+                join userRole in _context.UserRoles
+                    on user.Id equals userRole.UserId
+                join role in _context.Roles
+                    on userRole.RoleId equals role.Id
+                where user.Id == userId
+                      && user.IsActive
+                select role.Name!
+            ).Distinct().ToListAsync(cancellationToken);
+        }
+
         public async Task<IReadOnlyList<TicketCommentDto>> GetByTicketIdAsync(
             int ticketId,
             string requestingUserId,
@@ -29,20 +45,26 @@ namespace HelpDesk.DAL.Repositories
                     "Invalid ticket or user information.");
             }
 
-            // Verify that the requesting user exists and is active.
-            var user = await _context.Users
-                .AsNoTracking()
-                .FirstOrDefaultAsync(
-                    u => u.Id == requestingUserId && u.IsActive,
-                    cancellationToken);
+            var userRoles = await GetActiveUserRolesAsync(
+                requestingUserId,
+                cancellationToken);
 
-            if (user == null)
+            if (userRoles.Count == 0)
             {
                 throw new UnauthorizedAccessException(
-                    "Your account is inactive or does not exist.");
+                    "Your account is inactive, does not exist, or has no assigned role.");
             }
 
-            // Verify that the ticket exists.
+            bool isAdmin = userRoles.Contains("Admin");
+            bool isEmployee = userRoles.Contains("Employee");
+            bool isTechnician = userRoles.Contains("Technician");
+
+            if (!isAdmin && !isEmployee && !isTechnician)
+            {
+                throw new UnauthorizedAccessException(
+                    "You do not have a valid application role.");
+            }
+
             var ticket = await _context.Tickets
                 .AsNoTracking()
                 .FirstOrDefaultAsync(
@@ -55,29 +77,18 @@ namespace HelpDesk.DAL.Repositories
                     "Ticket does not exist.");
             }
 
-            // Verify the user's actual Admin role through Identity.
-            bool isAdmin = await (
-                from userRole in _context.UserRoles
-                join role in _context.Roles
-                    on userRole.RoleId equals role.Id
-                where userRole.UserId == requestingUserId
-                      && role.Name == "Admin"
-                select role.Id
-            ).AnyAsync(cancellationToken);
-
-            // Only Admins can retrieve internal comments.
             if (includeInternal && !isAdmin)
             {
                 throw new UnauthorizedAccessException(
                     "You are not authorized to view internal comments.");
             }
 
-            // Non-admin users must own or be assigned to the ticket.
             bool hasTicketAccess =
-                ticket.CreatedById == requestingUserId ||
-                ticket.AssignedToId == requestingUserId;
+                isAdmin ||
+                (isEmployee && ticket.CreatedById == requestingUserId) ||
+                (isTechnician && ticket.AssignedToId == requestingUserId);
 
-            if (!isAdmin && !hasTicketAccess)
+            if (!hasTicketAccess)
             {
                 throw new UnauthorizedAccessException(
                     "You are not authorized to view this ticket's comments.");
@@ -116,11 +127,25 @@ namespace HelpDesk.DAL.Repositories
             TicketComment comment,
             CancellationToken cancellationToken = default)
         {
+            ArgumentNullException.ThrowIfNull(comment);
+
             if (comment.TicketId <= 0 ||
                 string.IsNullOrWhiteSpace(comment.UserId))
             {
                 throw new ArgumentException(
                     "Invalid ticket or user information.");
+            }
+
+            if (string.IsNullOrWhiteSpace(comment.Message))
+            {
+                throw new ArgumentException(
+                    "Comment message is required.");
+            }
+
+            if (comment.Message.Length > 2000)
+            {
+                throw new ArgumentException(
+                    "Comment message cannot exceed 2000 characters.");
             }
 
             var ticket = await _context.Tickets
@@ -134,41 +159,32 @@ namespace HelpDesk.DAL.Repositories
                     "Ticket does not exist.");
             }
 
-            var user = await _context.Users
-                .AsNoTracking()
-                .FirstOrDefaultAsync(
-                    u => u.Id == comment.UserId && u.IsActive,
-                    cancellationToken);
+            var userRoles = await GetActiveUserRolesAsync(
+                comment.UserId,
+                cancellationToken);
 
-            if (user == null)
+            if (userRoles.Count == 0)
             {
                 throw new UnauthorizedAccessException(
-                    "User does not exist or is inactive.");
+                    "User does not exist, is inactive, or has no assigned role.");
             }
-
-            // Retrieve the user's actual Identity roles.
-            var userRoles = await (
-                from userRole in _context.UserRoles
-                join role in _context.Roles
-                    on userRole.RoleId equals role.Id
-                where userRole.UserId == comment.UserId
-                select role.Name
-            ).ToListAsync(cancellationToken);
 
             bool isAdmin = userRoles.Contains("Admin");
             bool isEmployee = userRoles.Contains("Employee");
             bool isTechnician = userRoles.Contains("Technician");
 
-            // Only Admins can create internal comments.
+            if (!isAdmin && !isEmployee && !isTechnician)
+            {
+                throw new UnauthorizedAccessException(
+                    "User does not have a valid application role.");
+            }
+
             if (comment.IsInternal && !isAdmin)
             {
                 throw new UnauthorizedAccessException(
                     "Only Admins can create internal comments.");
             }
 
-            // Admins can comment on any ticket.
-            // Employees can comment on their own tickets.
-            // Technicians can comment on tickets assigned to them.
             bool hasTicketAccess =
                 isAdmin ||
                 (isEmployee && ticket.CreatedById == comment.UserId) ||
@@ -179,6 +195,8 @@ namespace HelpDesk.DAL.Repositories
                 throw new UnauthorizedAccessException(
                     "You are not authorized to comment on this ticket.");
             }
+
+            comment.Message = comment.Message.Trim();
 
             await _context.TicketComments.AddAsync(
                 comment,

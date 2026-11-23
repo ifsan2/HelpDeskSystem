@@ -1,4 +1,5 @@
-﻿using HelpDesk.BLL.DTOs.Categories;
+﻿
+using HelpDesk.BLL.DTOs.Categories;
 
 namespace HelpDesk.BLL.Interfaces.Services
 {
@@ -14,11 +15,13 @@ namespace HelpDesk.BLL.Interfaces.Services
 
         Task<CategoryDto> CreateAsync(
             CreateCategoryDto category,
+            string adminId,
             CancellationToken cancellationToken = default);
 
         Task<bool> UpdateAsync(
             int id,
             UpdateCategoryDto category,
+            string adminId,
             CancellationToken cancellationToken = default);
     }
 }
