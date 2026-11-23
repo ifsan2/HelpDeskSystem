@@ -1,3 +1,4 @@
+
 using HelpDesk.DAL.Extensions;
 using HelpDesk.Web.Components;
 using Microsoft.AspNetCore.Identity;
@@ -7,6 +8,12 @@ using HelpDesk.BLL.Services;
 using HelpDesk.Web.Data;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Load local admin credentials
+builder.Configuration.AddJsonFile(
+    "secrets.json",
+    optional: true,
+    reloadOnChange: false);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
@@ -24,7 +31,7 @@ builder.Services.AddBusinessLogic();
 
 // Authentication and authorization
 builder.Services.AddAuthentication(
-    Microsoft.AspNetCore.Identity.IdentityConstants.ApplicationScheme)
+    IdentityConstants.ApplicationScheme)
     .AddIdentityCookies();
 
 builder.Services.AddAuthorization();
@@ -33,6 +40,7 @@ builder.Services.AddCascadingAuthenticationState();
 
 var app = builder.Build();
 
+// Seed initial Admin account and roles
 await IdentitySeeder.SeedAdminAsync(app.Services);
 
 // Configure the HTTP request pipeline.
